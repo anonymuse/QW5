@@ -42,3 +42,6 @@ jobs:
 
       - name: Smoke test
         run: zig build smoke
+
+      - name: Inventory command and schema
+        run: zig build run -- inventory | grep -F '"schema":"bootstrap-target-v1"'

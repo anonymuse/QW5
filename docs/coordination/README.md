@@ -10,8 +10,9 @@ handoff.
   dependencies, acceptance checks, and blockers.
 
 Architecture belongs in ADRs, benchmark evidence belongs in reproducibility artifacts,
-and AI-development disclosure belongs in `AI_PROVENANCE.md`. Coordination documents
-should link those records rather than duplicate them.
+and AI-development disclosure uses the policy in `AI_PROVENANCE.md` plus task-owned
+records under `docs/provenance/`. Coordination documents should link those records
+rather than duplicate them.
 
 Never place credentials, machine secrets, personal data, hidden reasoning, or private
 task transcripts here. Record concise decisions and evidence sufficient for another

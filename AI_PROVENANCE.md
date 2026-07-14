@@ -1,12 +1,23 @@
 # AI provenance
 
 QW5 records enough public provenance to make its AI-authorship process reviewable
-without publishing private task content. Each pull request adds or updates a record
-using the template below.
+without publishing private task content. This file defines the policy and template;
+it is not the mutable record for every pull request.
 
 Do not include private prompts or transcripts, hidden reasoning, credentials, machine
 secrets, personal data, or environment values that could identify or compromise a
 machine. A concise summary of material human direction is sufficient.
+
+## Storage and lifecycle
+
+- Each pull request owns one record at `docs/provenance/pr-NNNN.md`, using its
+  zero-padded pull-request number.
+- The task owner may update that record while the pull request is open. No other
+  concurrent task writes it.
+- After merge, the record is immutable. A later correction is a separately reviewed,
+  linked amendment rather than a rewrite of the original record.
+- A repository-wide provenance index is optional and has one integration owner when
+  a task explicitly authorizes updating it.
 
 ## Pull-request record template
 
@@ -24,36 +35,3 @@ machine. A concise summary of material human direction is sufficient.
 - **Adapted non-AI-authored source:** State `none` or identify the source, license,
   decision record, and affected paths.
 - **Human interventions or decisions:**
-
-## Bootstrap foundation record
-
-- **Date and pull request:** 2026-07-14;
-  [draft pull request #1](https://github.com/anonymuse/QW5/pull/1) on
-  `codex/bootstrap-foundation`.
-- **Coding surface and model family:** Codex desktop; GPT-5.6 Sol, visible in the task
-  interface.
-- **Reasoning setting:** Extra High, visible in the task interface.
-- **Task objective:** Establish the public QW5 repository foundation without
-  implementing inference.
-- **Material human direction:** The project owner supplied the QW5 handoff, runtime
-  boundaries, initial three-node topology, model sequence, evidence requirements,
-  Apache-2.0 selection, task-routing policy, bootstrap scope, and publication checks.
-- **Files generated or materially changed:** Root project policy and contribution
-  files; coordination, architecture, benchmark, and hardware documents; three ADRs;
-  Zig build and source files; CI; toolchain pin; and ignore rules.
-- **Tests and checks performed:** Zig formatting, build, unit tests, deterministic
-  smoke test, inventory command inspection, full diff review, policy duplication and
-  claim scans, license/provenance review, and secret/private-data scan.
-- **Review process:** Single-task implementation followed by a complete diff review
-  against the approved handoff and current primary model sources; draft pull request
-  retained for public human review.
-- **Dependencies and external references:** Zig 0.16.0 and its standard library;
-  GitHub-hosted `macos-15`; immutable revisions of `actions/checkout` and
-  `mlugg/setup-zig`; official Qwen Hugging Face model cards at the revisions recorded
-  in ADR-0001; official Zig and GitHub runner documentation.
-- **Adapted non-AI-authored source:** No implementation source adapted. `LICENSE` is
-  the standard Apache License 2.0 text. GitHub Actions uses the published interfaces
-  of attributed third-party actions.
-- **Human interventions or decisions:** The owner selected the project direction,
-  hardware inputs, target models, Apache-2.0 license, branch and publication workflow,
-  and single-Sol execution policy.

@@ -73,3 +73,9 @@ Create a focused commit, push the task branch, and open one draft pull request. 
 pull request states scope, rationale, impact, checks, known limits, open decisions, and
 provenance. Move the board item to `review` and add the pull-request link. Merge,
 branch deletion, and worktree deletion remain explicit human decisions.
+
+After merge, reconcile the board entry before claiming new work from current `main`:
+mark the merged task `done`, record its pull request, merge commit, and merge date, and
+move it to **Recently completed**. This reconciliation is either the first step of the
+next task or a dedicated housekeeping task; a merged entry must not remain in
+`review` while a new task is claimed.

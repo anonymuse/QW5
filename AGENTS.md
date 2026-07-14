@@ -90,11 +90,14 @@ personal data, or raw private task transcripts.
 
 ## AI provenance
 
-Every pull request must add or update an `AI_PROVENANCE.md` record containing the
-coding surface and model family, reasoning setting only when verifiable, task
-objective, material human direction, materially changed files, validation, review
-process, dependencies and external references, adapted non-AI-authored material, and
-human interventions or decisions.
+Every pull request must add or update its task-owned record at
+`docs/provenance/pr-NNNN.md`, following the policy and template in
+`AI_PROVENANCE.md`. The record contains the coding surface and model family, reasoning
+setting only when verifiable, task objective, material human direction, materially
+changed files, validation, review process, dependencies and external references,
+adapted non-AI-authored material, and human interventions or decisions. Only the task
+owner writes the record while its pull request is open; the record is immutable after
+merge.
 
 Separate claims about original QW5 work from dependencies, model weights, frameworks,
 research, standards, and third-party material. Never claim a model or reasoning

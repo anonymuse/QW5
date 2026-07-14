@@ -44,8 +44,8 @@ reviewable evidence.
 ## Authorship, dependencies, and source use
 
 Original QW5 code and documentation should be AI-authored, human-directed, publicly
-reviewed, and evidence-verified. Record the required pull-request provenance in
-`AI_PROVENANCE.md`.
+reviewed, and evidence-verified. Follow `AI_PROVENANCE.md` and record the required
+pull-request provenance in the task-owned `docs/provenance/pr-NNNN.md` file.
 
 Dependencies, model weights, frameworks, papers, standards, generated oracle data,
 and third-party material must be attributed separately. Studying a reference is not
