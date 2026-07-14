@@ -10,7 +10,7 @@ QW5 is an independent project. It must not merge Git history with QW3 or QW4.
 - QW4 remains a frozen architectural artifact (https://github.com/anonymuse/qw4).
 - QW5 is the OpenAI/Codex-led implementation.
 - QW3, QW4, DS4, llama.cpp, and MLX may be studied as references and baselines.
-- Do not directly copy source from DS4, QW3, or QW4 into QW5 without an explicit provenance decision.
+- Default to clean-room, AI-authored reimplementation after studying reference projects. If direct source adaptation is ever approved, identify it as attributed third-party material and exclude it from claims about original QW5 authorship.
 
 ## Project thesis
 
@@ -31,11 +31,21 @@ The project should demonstrate expertise in:
 
 QW5 is not intended to be a wrapper around llama.cpp, MLX, or another complete inference runtime.
 
-## GPT-5.6 Workflow
-- Use GPT-5.6 Sol at high/max/ultra for architecture, contracts, integration, and final review.
-- Use Terra for bounded implementation tasks with frozen inputs; use Luna only for mechanical schema, fixture, documentation, and repetitive test work.
-- Allow parallel work only on disjoint owned paths after contracts are accepted. Sol performs integration and adversarial review.
-- Keep durable state in the canonical spec, ADRs, artifacts, and task board—not chat summaries. GPT-5.6’s larger context and multi-agent capability reduce coordination cost but do not justify speculative architecture. Official GPT-5.6 release
+## GPT-5.6 workflow
+
+Model selection occurs when a Codex task is launched. Do not assume that one task can or should switch among Sol, Terra, and Luna while it is running.
+
+- Use GPT-5.6 Sol for ambiguous architecture, contracts, cross-cutting changes, difficult debugging, integration, benchmark interpretation, polished technical writing, and final review.
+- Use GPT-5.6 Terra for separate, bounded implementation tasks after their contracts, owned paths, inputs, and acceptance tests are established.
+- Use GPT-5.6 Luna for separate, highly specified and repeatable tasks such as schema generation, fixture construction, mechanical transformations, documentation normalization, and repetitive test expansion.
+- Use the lowest reasoning effort that reliably completes the task. Medium is the normal starting point; High or Extra High is appropriate for difficult multi-step work.
+- Use Max when a single difficult task benefits from deeper reasoning and unified context.
+- Ultra is not a reasoning level. It is a multi-agent execution mode. Use it only when a later task explicitly requests parallel agents and the work can be partitioned into genuinely independent, bounded subtasks.
+- Do not use Ultra for the initial repository bootstrap. The foundation, instructions, contracts, and architecture records should be produced coherently by one Sol task.
+- After contracts are accepted, Ultra may delegate read-heavy research, independent validation, benchmarks, or work on disjoint owned paths. Sol remains responsible for integration and adversarial review.
+- Record the model family and reasoning setting actually used when that information is available. Do not claim a particular model or setting when it cannot be verified.
+- Keep durable state in specifications, ADRs, artifacts, provenance records, and the task board—not only in task transcripts.
+- Larger context and multi-agent capability reduce coordination cost but do not justify speculative architecture or unverified claims.
 
 ## Public positioning
 
