@@ -1,173 +1,246 @@
 # Thunderbolt 5 measurement protocol v1
 
-## Scope
+## Scope and artifact chain
 
 This protocol measures QW5-framed application traffic over persistent TCP connections
 bound to verified direct Thunderbolt network routes. Results describe only the exact
 recorded stack. They are not raw-link capacity, production-transport, inference, or
 model-performance claims.
 
-The result schema is
-[`tb5-measurement.schema.json`](../../schemas/v1/tb5-measurement.schema.json).
+The machine-readable chain is:
+
+- [`tb5-run-plan.schema.json`](../../schemas/v1/tb5-run-plan.schema.json) for the
+  owner-approved 246-cell plan and local controls;
+- [`tb5-route-proof.schema.json`](../../schemas/v1/tb5-route-proof.schema.json) for
+  all six direct routes;
+- [`tb5-measurement.schema.json`](../../schemas/v1/tb5-measurement.schema.json) for
+  every raw cell result; and
+- [`tb5-link-summary.schema.json`](../../schemas/v1/tb5-link-summary.schema.json) for
+  the complete cell index and reconciled summaries.
+
+All JSON identities use [`qw5-json-c14n-v1`](canonical-json-v1.md). The exact
+handshake, payload generator, frame, digest trailer, acknowledgement, and golden bytes
+are defined by [`qw5-tb5-wire/v1`](thunderbolt5-wire-v1.md).
 
 ## Preconditions
 
 Before a run:
 
-1. All three `qw5.hardware-inventory/v1` manifests pass validation and match the
-   intended A/B/C aliases.
-2. Each pair has a route proof showing traffic is bound directly to that pair's
-   Thunderbolt route. The data plane must not traverse node A as coordinator or any
-   non-test interface.
-3. QW5 commit, harness executable SHA-256, schema version, OS build, socket settings,
-   and inventory digests are frozen in the run plan.
-4. Nodes use the same harness and plan digest. A control barrier coordinates starts
-   but never relays measured payloads.
-5. Low Power Mode is off. Power source is stable and recorded. Each node reports the
-   nominal thermal state continuously for five minutes before baseline measurement.
-6. No model, conversion, backup, update, or unrelated high-load job runs on the nodes.
-   Process lists are checked locally; they are not published.
+1. All three `qw5.hardware-inventory/v1` manifests pass schema, semantic, and public-
+   safety validation and match the intended A/B/C aliases.
+2. The six-entry route proof shows traffic bound directly to each pair's Thunderbolt
+   route. The data plane never traverses node A as coordinator or a non-test route.
+3. QW5 commit, clean-state flag, harness SHA-256, schema versions, OS builds,
+   requested socket settings, inventory and route-proof digests, seed, order
+   algorithm, thresholds, and local controls are frozen in an owner-approved run plan.
+4. Every node uses the same harness and canonical plan digest. An out-of-band control
+   barrier coordinates starts but never relays measured payloads.
+5. Low Power Mode is off, power source is stable and recorded, and every node remains
+   in nominal thermal state for five minutes before controls or network measurement.
+6. No model, conversion, backup, update, or unrelated high-load job runs. Process
+   checks stay local and only their public-safe pass/fail result is committed.
 
-## Framing and transport
+An unavailable route, dirty binary, plan mismatch, missing owner approval, or public-
+safety failure blocks physical execution. It is not repaired inside a measurement run.
 
-One worker and one persistent TCP connection are used per directed flow. TCP_NODELAY
-is enabled. TLS and compression are disabled. Requested and effective send/receive
-buffer sizes, congestion-control name when exposed, address family, maximum segment
-size when exposed, and route aliases are recorded. Raw addresses are excluded.
+## Transport and exact framing
 
-Each message has a fixed protocol header containing protocol version, run/scenario
-identifier hashes, stream ID, sequence number, payload bytes, flags, and the expected
-SHA-256 payload digest. Integers use network byte order. Header bytes and payload bytes
-are counted separately. The deterministic payload is generated from the plan seed,
-stream ID, payload size, and sequence number; generation occurs before a timed latency
-operation or uses a prebuilt ring for streaming.
+One worker and one persistent TCP connection serve each directed flow. `TCP_NODELAY`
+is enabled; TLS and compression are disabled. For both endpoints of every flow, record
+requested and effective send/receive buffers, `TCP_NODELAY`, address family,
+congestion-control name when exposed, maximum segment size when exposed, and the
+public route alias. Raw network addresses are forbidden.
 
-The receiver validates frame length, identity, monotonic sequence, and SHA-256 before
-crediting bytes. It reports checksum computation time separately. Checksumming remains
-inside the measured application path and is not silently subtracted from throughput.
+The wire contract fixes a 96-byte untimed identity handshake, 64-byte data header,
+payload, 32-byte SHA-256 trailer, and, in round-trip mode, 64-byte acknowledgement.
+Header, payload, trailer, acknowledgement, and observed socket bytes are separate.
+Deterministic payload bytes derive from seed, flow ID, payload size, and sequence by
+the exact SHA-256 counter formula; payload generation occurs outside a timed latency
+exchange.
 
-## Directed paths and concurrency scenarios
+The receiver credits a message only after frame identity, exact length, monotonic
+sequence, deterministic bytes, and SHA-256 all pass. It records checksum count and
+elapsed time. Integrity work stays inside the application path and is not silently
+subtracted from throughput.
 
-The six directed paths are `A>B`, `B>A`, `A>C`, `C>A`, `B>C`, and `C>B`. Execute these
-18 scenarios in the listed order unless a preregistered randomized order and seed are
-stored in the plan:
+## Exact directed scenarios
 
-| ID | Concurrent directed flows | Purpose |
-| --- | --- | --- |
-| `solo-a-b` | `A>B` | Solo direction |
-| `solo-b-a` | `B>A` | Solo direction |
-| `solo-a-c` | `A>C` | Solo direction |
-| `solo-c-a` | `C>A` | Solo direction |
-| `solo-b-c` | `B>C` | Solo direction |
-| `solo-c-b` | `C>B` | Solo direction |
-| `duplex-a-b` | `A>B`, `B>A` | Pair full duplex |
-| `duplex-a-c` | `A>C`, `C>A` | Pair full duplex |
-| `duplex-b-c` | `B>C`, `C>B` | Pair full duplex |
-| `fanout-a` | `A>B`, `A>C` | Shared sender |
-| `fanout-b` | `B>A`, `B>C` | Shared sender |
-| `fanout-c` | `C>A`, `C>B` | Shared sender |
-| `fanin-a` | `B>A`, `C>A` | Shared receiver |
-| `fanin-b` | `A>B`, `C>B` | Shared receiver |
-| `fanin-c` | `A>C`, `B>C` | Shared receiver |
-| `cycle-a-b-c` | `A>B`, `B>C`, `C>A` | Three-node directed cycle |
-| `cycle-a-c-b` | `A>C`, `C>B`, `B>A` | Reverse cycle |
-| `all-directed` | all six | Full-mesh stress |
+The canonical flow IDs are `a-b`, `b-a`, `a-c`, `c-a`, `b-c`, and `c-b`. A scenario
+ID is coupled to the following exact ordered flow set; it is not a free-form label.
 
-All flows in a simultaneous scenario use the same payload size and start barrier.
-Ready acknowledgements precede the barrier. A measured start skew above 10 ms
-invalidates that repetition; at most two replacement attempts are allowed and all
-attempts are retained.
+| Scenario ID | Ordered concurrent directed flows |
+| --- | --- |
+| `solo-a-b` | `A>B` |
+| `solo-b-a` | `B>A` |
+| `solo-a-c` | `A>C` |
+| `solo-c-a` | `C>A` |
+| `solo-b-c` | `B>C` |
+| `solo-c-b` | `C>B` |
+| `duplex-a-b` | `A>B`, `B>A` |
+| `duplex-a-c` | `A>C`, `C>A` |
+| `duplex-b-c` | `B>C`, `C>B` |
+| `fanout-a` | `A>B`, `A>C` |
+| `fanout-b` | `B>A`, `B>C` |
+| `fanout-c` | `C>A`, `C>B` |
+| `fanin-a` | `B>A`, `C>A` |
+| `fanin-b` | `A>B`, `C>B` |
+| `fanin-c` | `A>C`, `B>C` |
+| `cycle-a-b-c` | `A>B`, `B>C`, `C>A` |
+| `cycle-a-c-b` | `A>C`, `C>B`, `B>A` |
+| `all-directed` | all six in canonical flow order |
 
-## Payloads and modes
+Every flow in a simultaneous scenario uses one payload size and the same barrier.
+Ready acknowledgements precede release.
 
-Streaming mode uses this exact ordered byte matrix:
+## Cell matrix and deterministic order
+
+Streaming mode uses exactly these payload bytes:
 
 `64`, `256`, `1,024`, `4,096`, `16,384`, `65,536`, `262,144`, `1,048,576`,
 `4,194,304`, `16,777,216`, `67,108,864`, and `268,435,456`.
 
-For every scenario and payload:
+It covers all 18 scenarios, producing 216 cells. Round-trip mode covers only the six
+solo scenarios and payloads `64`, `1,024`, `16,384`, `262,144`, and `4,194,304`,
+producing 30 cells. The plan total is therefore 246, validated semantically rather
+than trusted from a declared count.
 
-- perform three unreported warm-up samples;
-- each warm-up lasts at least two seconds and completes at least one message;
-- perform ten reported repetitions;
-- each reported repetition lasts at least three seconds and completes at least one
-  message per flow;
-- use a fresh sequence range without reconnecting between valid repetitions; and
-- idle for five seconds between payload sizes and sixty seconds between scenarios,
-  subject to the thermal rule below.
+Each canonical cell ID is `stream:<scenario>:<payload>` or
+`round-trip:<scenario>:<payload>`. `sha256-keyed-sort-v1` orders cells by SHA-256 over
+the big-endian 64-bit seed followed by the UTF-8 cell ID; digest ties break by cell ID.
+The seed and resulting schedule index are committed before results exist. This
+preregistered order prevents discretionary best-condition ordering.
+Every cell result repeats the seed, and semantic validation recomputes that cell's
+exact schedule index. The final link summary repeats the seed, contains cells in
+schedule order, and validates every cell/index pair rather than checking only that
+the integers 0 through 245 appear.
 
-The endpoint records monotonic start/end, messages, logical payload bytes, header
-bytes, socket bytes when exposed, checksum count/time, sequence range, and errors for
-each repetition. Throughput is calculated from receiver-validated payload bytes and
-receiver-local elapsed time. Sender results are reported separately; cross-clock
-subtraction is forbidden.
+## Streaming repetitions
 
-Round-trip mode runs only for the six solo paths with payloads `64`, `1,024`, `16,384`,
-`262,144`, and `4,194,304` bytes. The receiver returns a fixed-size acknowledgement
-after validation. For the first four sizes, run 100 warm-up exchanges and 1,000
-recorded sequential exchanges. For 4,194,304 bytes, run 20 warm-ups and 100 recorded
-exchanges. Report source-local round-trip latency; do not divide it into one-way
-latency. Acknowledgement bytes are counted separately.
+For every stream cell:
 
-## Copies and synchronization
+- retain three warm-up attempts, excluded only from sample statistics;
+- run each warm-up for at least two seconds and one message per flow;
+- target ten valid measurement attempts, each at least three seconds and one message
+  per flow;
+- permit at most twelve measurement attempts total, so no more than two replacements;
+- continue fresh non-overlapping sequence ranges on persistent connections;
+- idle five seconds between payloads and sixty seconds between scenarios, subject to
+  the thermal rule; and
+- retain warm-ups, invalid attempts, replacements, errors, and partial results.
 
-For each endpoint and repetition, record observable application copies by named stage:
+For each flow, record source- and receiver-local monotonic start/end, messages,
+logical payload, header, digest-trailer, acknowledgement and socket bytes, checksum
+count/time, sequence range, copy observations, and errors. Counts reconcile to payload
+size and sequence range. Streaming throughput is receiver-validated payload divided
+by receiver-local elapsed time. Sender timing remains separate; clocks are never
+subtracted across nodes.
 
-- deterministic producer to send buffer;
-- send buffer to transport submission when observable;
-- transport receive to receive buffer when observable;
-- receive buffer to checksum/consumer when a distinct copy occurs.
+## Round-trip repetitions
 
-Each stage has `available`, `unavailable`, or `error`, count, bytes, observation method,
-and whether the value is counted or inferred. Inferred values are `ESTIMATED` and are
-not combined with measured copy counts. Kernel, DMA, controller, and hardware copies
-remain unavailable unless a documented probe directly observes them. Throughput is
-never used as evidence of zero-copy.
+The receiver sends the fixed 64-byte acknowledgement only after full validation. For
+the first four sizes, retain 100 warm-up exchanges and record 1,000 sequential
+exchanges. For 4,194,304 bytes, retain 20 warm-ups and record 100 exchanges. Report
+every source-local round-trip latency and its distribution. Never divide by two or
+publish it as one-way latency.
 
-The coordinator records barrier readiness, release time, and per-node start receipt.
-Wall-clock synchronization is used only to correlate artifacts. Timed intervals use
-endpoint-local monotonic clocks.
+The exchanges are stored as one warm-up batch and one measurement batch per cell,
+with each exchange latency retained. Round-trip batches have no replacement policy:
+an integrity/exchange failure makes the batch and cell `FAILED`; a timed connection
+failure makes it `ABORTED`. Partial exchanges and errors remain raw evidence.
 
-## Error and retry policy
+## Synchronization evidence
 
-- Checksum, frame identity, sequence, byte-count, route, or premature-EOF failure
-  invalidates the repetition.
-- A connection setup failure permits one reconnect before the scenario begins. A
-  connection failure in a timed repetition aborts that scenario/payload cell.
-- Timeouts, socket errors, invalid samples, and replacement attempts remain in raw
-  artifacts. They are not excluded from failure-rate reporting.
-- The valid sample target is ten. If it is not reached within twelve attempts, the
-  cell fails G2 and is reported as negative evidence.
-- No automatic payload reduction, path change, relay, checksum disablement, or socket
-  retuning is allowed inside a plan. Such a change creates a new plan digest.
+Monotonic clocks on different nodes are not directly comparable. V1 therefore uses
+only `coordinator_receipt_surrogate`, measured on one coordinator monotonic clock:
 
-## Thermal and power policy
+1. Immediately before each simultaneous attempt, every worker completes 100 echo
+   rounds on the persistent control channel; the coordinator retains every RTT and the
+   maximum accepted RTT.
+2. On release, each worker starts its data worker and immediately queues a `STARTED`
+   acknowledgement. It records its local data-start-to-ack interval. The coordinator
+   records every acknowledgement receipt and their maximum-minus-minimum skew.
+3. The timer allowance is the sum of the recorded coordinator and participating-node
+   monotonic resolutions. Let `rtt` be the maximum control RTT and `worker` the maximum
+   local start-to-ack interval. The conservative uncertainty is
+   `rtt + 2 * worker + timer_allowance`.
+4. `start_skew_upper_bound = coordinator_receipt_skew + uncertainty`.
 
-Record thermal state, Low Power Mode, power source, and monotonic observation times at
-the beginning and end of every repetition. If any node leaves nominal thermal state,
-finish and retain the active repetition as a distinct thermal regime, then pause new
-measurement for up to 15 minutes. Resume only after all nodes are nominal continuously
-for five minutes. Otherwise abort the remaining scenario and record the failure.
+The raw calibration/receipt record is canonical and content-addressed; its SHA-256 and
+all formula inputs are stored in the attempt. A valid attempt requires uncertainty at
+or below 1 ms and the upper bound at or below 10 ms. Exceeding either invalidates the
+attempt with the corresponding reason and permits a replacement within the stream
+twelve-attempt limit. If calibration is unavailable or cannot meet the uncertainty
+bound, the cell is `UNDETERMINED`, never simultaneous-link evidence. Solo flows mark
+this synchronization `not_required`.
 
-Ambient temperature and fan data are recorded when available. Their absence is
-explicit and does not invite an estimate. Results from different thermal or power
-regimes are never pooled.
+## Copy evidence and local controls
 
-## Artifact identity and reporting
+Each flow records six endpoint/stage observations: producer-to-send,
+send-to-transport, and kernel/DMA/hardware at the source; transport-to-receive,
+receive-to-consumer, and kernel/DMA/hardware at the destination. Every entry names the
+endpoint, status, method, and, when available, count and bytes. Direct counts are
+`MEASURED`; inferred values are `ESTIMATED` and stay separate; schema-fixture values
+are `SIMULATED`. Kernel and hardware copies remain unavailable absent a direct
+documented probe. Throughput never proves zero-copy.
 
-Each result references the plan digest, QW5 commit, harness digest, three inventory
-digests, route-proof digest, scenario, payload, mode, seed, socket configuration,
-sample records, exclusions, and collection errors. Raw artifacts are content-addressed.
+Before network cells, each node runs buffer-copy, frame encode/decode, and SHA-256
+controls for every stream payload with three retained warm-ups and ten recorded
+repetitions. Binary, seed, byte counts, elapsed time, thermal state, and errors are
+content-addressed. Controls may explain an application bottleneck but are never
+subtracted from network results or used to relabel link contention.
 
-Summaries report per directed flow and aggregate scenario values without hiding
-per-flow contention. For latency and throughput report sample count, median, median
-absolute deviation or another preregistered dispersion statistic, p95, minimum,
-maximum, invalid attempts, and thermal regimes. The best run is never the headline.
+## Error, retry, and thermal policy
+
+- Checksum, frame identity, sequence, byte-count, route, skew, or premature-EOF
+  failure invalidates and retains the attempt.
+- One reconnect is permitted before a scenario begins. A timed connection failure
+  aborts that scenario/payload cell.
+- Timeouts, socket errors, invalid attempts, exclusions, and replacements remain in
+  raw artifacts and in failure-rate counts.
+- Fewer than ten valid stream measurements after twelve attempts yields `FAILED`.
+- No payload reduction, path change, relay, checksum disablement, order change, or
+  socket retuning is allowed inside a plan. Any such change creates a new plan digest.
+
+Every attempt records beginning/end thermal state, Low Power Mode, power source, and
+local monotonic observation times for every participating node. If a node leaves
+nominal state, finish and retain the active attempt under its distinct thermal regime,
+then pause new work for up to 15 minutes. Resume only after all nodes are nominal for
+five continuous minutes; otherwise abort the cell. Results from different thermal or
+power regimes are never pooled. Ambient and fan data remain explicitly unavailable
+when no supported source exists.
+
+## Artifact identity and summaries
+
+Each result references the plan digest, schedule index, QW5 commit, harness digest,
+three inventory digests, route-proof digest, exact scenario flow set, payload, mode,
+seed, framing version, requested/effective socket settings, every warm-up and
+measurement attempt, exclusions, and collection errors.
+
+Per-flow and aggregate summaries report sample count, median, median absolute
+deviation, p95, minimum, maximum, invalid attempts, and thermal regimes. The link
+summary contains exactly 246 unique cell IDs and schedule indexes; coverage counts
+reconcile to the raw measurement index. Per-flow values are never hidden by an
+aggregate, and the best run is never the headline.
+
+Summary arithmetic is exact integer arithmetic. Stream input samples are per-attempt
+`floor(validated_payload_bytes * 1_000_000_000 / receiver_elapsed_ns)`; aggregate
+throughput is the sum of concurrent per-flow values for that attempt. Round-trip input
+samples are the retained source-local exchanges. Median is the middle value for odd
+counts and the floor of the two-middle-value average for even counts; median absolute
+deviation uses that same rule; p95 is nearest rank `ceil(0.95 * n)`. Wrong-mode
+metrics contain zero samples and null statistics. The semantic validator recomputes
+all per-flow and aggregate values.
 
 ## Acceptance and negative cases
 
-The harness tests must reject a wrong peer alias, non-direct route, inconsistent plan
-digest, missing flow, duplicate sequence, corrupt checksum, truncated frame, byte-count
-mismatch, start skew above the bound, unreported retry, unknown copy layer, raw network
-identifier in a public artifact, non-monotonic endpoint timestamps, and one-way latency
-derived from unsynchronized clocks.
+Schema validation is necessary but insufficient. `tools/validate_contracts.py`
+enforces scenario/flow coupling, complete plan coverage, route references, endpoint
+and socket coverage, arithmetic byte/sequence/checksum reconciliation, synchronization
+bounds, copy-stage coverage, attempt/summary/exclusion counts, cell outcome rules, and
+link-summary cell/flow/schedule/metric consistency.
+
+Harness tests must additionally reject wrong peers or routes, plan/identity mismatch,
+corrupt or truncated frames, duplicate or regressing sequence, partial reads/writes,
+socket byte mismatch, unreported retry, invalid sample credited to statistics,
+cross-clock one-way latency, missing thermal evidence, unknown copy stage, raw network
+identifier, and any golden-wire-vector mismatch.

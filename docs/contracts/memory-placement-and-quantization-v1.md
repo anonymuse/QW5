@@ -18,6 +18,18 @@ Each analysis pins exact SHA-256 identities for:
 - the analysis tool, QW5 commit, and dirty state; and
 - every assumption or target reserve.
 
+The clean-node memory input conforms to
+[`memory-baseline.schema.json`](../../schemas/v1/memory-baseline.schema.json). One
+inventory snapshot is not a baseline. Each node requires an owner-approved plan,
+ten-minute stabilization, 30 valid observations one minute apart, up to six retained
+replacement attempts, and the nearest-rank fifth percentile of available bytes.
+Thermal, pressure, power, Low Power Mode, clean-window status, invalid samples, and
+errors remain in the artifact. The result records the actual monotonic stabilization
+interval and validates every sample interval. It also carries the inventory's
+`gpu.recommended_working_set_bytes` observation as separate Metal guidance; that value
+is never treated as host available memory or substituted for the repeated baseline.
+Fewer than 30 valid observations is not `COMPLETE`.
+
 The primary evidence class is `ESTIMATED` for direct calculations or `SIMULATED` when
 a named simulator models schedules or traffic. Measured inputs retain their own class
 and do not relabel the output.
@@ -38,16 +50,20 @@ method.
 
 For each node calculate:
 
-`placement_budget = measured_available_baseline - os_reserve - safety_reserve`
+`os_reserve = physical_bytes - p05_available_baseline`
+
+`placement_budget = physical_bytes - os_reserve - safety_reserve`
 
 and
 
 `headroom = placement_budget - sum(all_assigned_classes)`.
 
-All terms are integer bytes and individually identified. `os_reserve` is based on
-repeated clean-node observations and their declared percentile or conservative bound.
-`safety_reserve` is a `TARGET` selected before result inspection. Neither is inferred
-from aggregate physical memory.
+The equivalent second expression is
+`placement_budget = p05_available_baseline - safety_reserve`; the OS reserve is not
+subtracted twice. All terms are integer bytes and individually identified.
+`safety_reserve` is an owner-approved `TARGET` frozen before analysis results are
+visible. It is not inferred from aggregate physical memory or adjusted to make a
+candidate fit.
 
 Assigned classes include at minimum:
 
@@ -85,6 +101,32 @@ padding/alignment bytes, exception bytes, container overhead, and total bytes. T
 components must reconcile exactly. If a transformed artifact exists, its measured file
 size and hash are a separate input; the calculation reports any discrepancy rather
 than replacing it.
+
+## Pre-analysis contract freeze
+
+A Sol-owned decision task must merge after the immutable tensor inventories and
+before any analyzer implementation. It produces and validates these machine-readable
+v1 artifacts and their schemas:
+
+- `qw5.quantization-layout/v1`: model revision, candidate ID, eligible tensor set,
+  packing word/order/endianness, bit width, group shape and axis, scale and zero-point
+  dtypes/shapes/storage, padding/alignment, auxiliary storage, higher-precision
+  exceptions, calibration identity when applicable, quality-evidence identity, and
+  exact byte formulas;
+- `qw5.formula-set/v1`: model revision/config digest, workload IDs, prefill/decode
+  state formulas, checked integer operations and rounding, cache policy, scratch and
+  persistent-buffer bounds, transport message formulas, allocator/fragmentation
+  policy, safety-reserve target, and every unresolved input;
+- `qw5.text-subset-dependency/v1` for Qwen3.5 when proposed: complete-manifest digest,
+  included/excluded tensors and files, loader and text-path dependency rules, proof
+  status, unresolved dependencies, and prohibited claims; and
+- model-specific gate rules that map each missing formula, layout, classification,
+  quality input, or subset dependency to `passed`, `failed`, or `unresolved`.
+
+Each artifact carries canonical identity, evidence class, positive and hostile
+fixtures, and semantic validation. Only concrete candidates with complete layouts
+enter the analyzer. A missing 8-, 6-, 5-, 4-, 3-, or 2-bit layout is reported as
+`UNDETERMINED`; a bit-width label is never expanded by Terra into a format decision.
 
 ## Placement rules
 
@@ -139,11 +181,20 @@ Each scenario has:
 unproven until correctness, quality, kernels, transport, thermal behavior, and runtime
 stability have their own evidence.
 
+The required gate set is exhaustive and partitions exactly into passed, failed, and
+unresolved sets. `GO` requires every gate passed, no failed or unresolved gate,
+nonnegative headroom on every node, and a non-null next task. `CONDITIONAL_GO` requires
+nonnegative memory and names only the next evidence task. `NO_GO` has a failed gate
+and no next implementation task. `UNDETERMINED` has unresolved evidence and cannot be
+used as a capability claim.
+
 ## Acceptance and negative cases
 
-The analysis must reject missing model or inventory digests, aggregate-only memory,
-negative or unreconciled byte components, duplicate storage assignment, omitted OS or
-safety reserve, implicit zero scratch, unknown tensor-class placement, packet counts
-multiplied by expert count, combined prefill/decode rates, a mutable model revision,
-quantization by bit-width label alone, quality inferred from size, and a capability
-claim derived from an estimated placement.
+The analysis must reject missing model, inventory, baseline, layout, formula, subset,
+or link identities; aggregate-only memory; double-subtracted OS reserve; negative or
+unreconciled byte components; duplicate storage assignment; omitted safety reserve;
+implicit zero scratch; unknown tensor-class placement; packet counts multiplied by
+expert count; combined prefill/decode rates; mutable model revision; quantization by
+bit-width label alone; overlapping or incomplete gate sets; `GO` with negative
+headroom or unresolved gates; quality inferred from size; and a capability claim
+derived from an estimated placement.

@@ -1,0 +1,39 @@
+{
+  "schema": "qw5.canonical-json-vectors/v1",
+  "valid_vectors": [
+    {
+      "vector_id": "object-order-and-scalars",
+      "value": {"z": 0, "a": [true, false, null, -7]},
+      "canonical_utf8_hex": "7b2261223a5b747275652c66616c73652c6e756c6c2c2d375d2c227a223a307d",
+      "sha256": "58199d5d30d5a69970bf215bdf9719c9251607cb814fae213bd3796da4c44139"
+    },
+    {
+      "vector_id": "unicode-and-escapes",
+      "value": {"é": "雪/", "line": "quote\" slash\\\n\u0001"},
+      "canonical_utf8_hex": "7b226c696e65223a2271756f74655c2220736c6173685c5c5c6e5c7530303031222c22c3a9223a22e99baa2f227d",
+      "sha256": "8e6151364d36c7e8e7c414e42013dab0c93e957e62f4c666d893076b89d2c83c"
+    },
+    {
+      "vector_id": "integer-boundaries",
+      "value": {"u64": 18446744073709551615, "i64": -9223372036854775808},
+      "canonical_utf8_hex": "7b22693634223a2d393232333337323033363835343737353830382c22753634223a31383434363734343037333730393535313631357d",
+      "sha256": "5cdde3ed0ebe6b31bc11474d0a17b7442b8495acbb5578c63ce10f0cccb99260"
+    }
+  ],
+  "invalid_sources": [
+    {"vector_id": "duplicate-member", "source_utf8_hex": "7b2261223a312c2261223a327d", "expected_error": "CANON_DUPLICATE_KEY"},
+    {"vector_id": "byte-order-mark", "source_utf8_hex": "efbbbf7b7d", "expected_error": "CANON_BOM"},
+    {"vector_id": "trailing-newline", "source_utf8_hex": "7b7d0a", "expected_error": "CANON_TRAILING_BYTES"},
+    {"vector_id": "fraction", "source_utf8_hex": "7b2278223a312e357d", "expected_error": "CANON_NON_INTEGER"},
+    {"vector_id": "exponent", "source_utf8_hex": "7b2278223a3165307d", "expected_error": "CANON_NON_INTEGER"},
+    {"vector_id": "negative-zero", "source_utf8_hex": "7b2278223a2d307d", "expected_error": "CANON_NON_CANONICAL"},
+    {"vector_id": "leading-space", "source_utf8_hex": "207b7d", "expected_error": "CANON_NON_CANONICAL"},
+    {"vector_id": "unsorted-members", "source_utf8_hex": "7b227a223a302c2261223a317d", "expected_error": "CANON_NON_CANONICAL"},
+    {"vector_id": "escaped-slash", "source_utf8_hex": "7b2278223a225c2f227d", "expected_error": "CANON_NON_CANONICAL"},
+    {"vector_id": "unnecessary-unicode-escape", "source_utf8_hex": "7b2278223a225c7530303631227d", "expected_error": "CANON_NON_CANONICAL"},
+    {"vector_id": "uppercase-control-escape", "source_utf8_hex": "7b2278223a225c7530303146227d", "expected_error": "CANON_NON_CANONICAL"},
+    {"vector_id": "non-nfc", "source_utf8_hex": "7b2278223a2265cc81227d", "expected_error": "CANON_NON_NFC"},
+    {"vector_id": "unicode-surrogate", "source_utf8_hex": "7b2278223a225c7564383030227d", "expected_error": "CANON_INVALID_SCALAR"},
+    {"vector_id": "integer-out-of-range", "source_utf8_hex": "7b2278223a31383434363734343037333730393535313631367d", "expected_error": "CANON_INTEGER_RANGE"}
+  ]
+}

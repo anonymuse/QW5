@@ -45,3 +45,11 @@ jobs:
 
       - name: Inventory command and schema
         run: zig build run -- inventory | grep -F '"schema":"bootstrap-target-v1"'
+
+      - name: Install contract validation dependencies
+        run: |
+          python3 -m venv .contract-venv
+          .contract-venv/bin/python -m pip install --disable-pip-version-check -r requirements/contract-validation.txt
+
+      - name: Validate contracts, semantics, and exact vectors
+        run: .contract-venv/bin/python tools/validate_contracts.py

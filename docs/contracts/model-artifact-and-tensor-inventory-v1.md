@@ -9,6 +9,8 @@ consumes. They cover `Qwen/Qwen3-Coder-Next` and
 The schemas are
 [`model-artifact-manifest.schema.json`](../../schemas/v1/model-artifact-manifest.schema.json)
 and [`tensor-inventory.schema.json`](../../schemas/v1/tensor-inventory.schema.json).
+Both use [`qw5-json-c14n-v1`](canonical-json-v1.md) for artifact identity and require
+schema plus repository semantic validation.
 
 ## Immutable model identity
 
@@ -34,13 +36,26 @@ tokenizer files, special-token maps, chat or prompt templates, license and notic
 weight index files, and every weight shard used by the tensor inventory. Missing or
 extra files fail completeness until reviewed.
 
+Before acquisition, Sol captures the immutable revision listing as a canonical
+artifact, records its SHA-256, and freezes the sorted `expected_paths` selected from
+that listing. The manifest file table must match that expected set exactly. Include
+and exclude patterns explain the selection but cannot substitute for the explicit
+path set or change after file results are visible.
+
 ## File and manifest hashing
 
 SHA-256 is computed by streaming exact bytes from a read-only artifact. Symlink target
-text, cache paths, and provider ETags are never substituted for content hashes. A
-second independent pass verifies byte count and hash before the manifest is accepted.
-The manifest is serialized in deterministic key and path order. A parent gate report
-records the manifest's exact-byte digest.
+text, cache paths, and provider ETags are never substituted for content hashes. Every
+verified file contains two ordered pass records, each with pass number, byte count,
+SHA-256, and completion time. Both passes must match the accepted file identity; a
+boolean assertion that a second pass happened is insufficient. The manifest uses
+canonical bytes and path order. A parent gate report records its digest.
+
+`complete` is derived, never self-asserted: every selected file is `verified`, every
+selected component has its required role, missing/unexpected/error lists are empty,
+the file table equals the frozen expected paths, both hash passes reconcile, and
+verified file/byte totals equal the file table. An
+incomplete or error manifest remains durable negative evidence but cannot pass G3.
 
 ## Tensor inventory
 
@@ -64,12 +79,18 @@ Integer element counts and byte sizes are recomputed with checked arithmetic. So
 format ranges must be within the file and obey the format's overlap, hole, alignment,
 and endianness rules. For SafeTensors, M1 follows the documented header, dtype, shape,
 and data-offset semantics and pins the parser dependency or clean-room parser revision.
-The [SafeTensors format description](https://github.com/huggingface/safetensors#format)
+The [SafeTensors format description](https://github.com/huggingface/safetensors/blob/main/README.md#format)
 is a reference, not source donated to QW5.
 
-Totals are emitted by file, component, semantic class, normalized dtype, layer, and
-expert class. Every total must reconcile to the tensor list. File container overhead
-is reported separately from tensor payload bytes.
+Source files record container, header, and data-section bytes. Totals are emitted by
+file, component, semantic class, normalized dtype, layer, and expert class. Every
+count and byte total is recomputed from the tensor list. Tensor names and owning
+storage IDs are unique; dtype normalization, shape product, stored bytes, range
+length, file bounds, overlap, hole, and full data-section coverage are checked with
+bounded integer arithmetic. File container overhead remains separate from payload.
+An alias names one owning tensor and repeats its exact file, dtype, shape, range, and
+storage identity. Logical tensor/element counts include aliases; physical byte totals
+and byte breakdowns count only owners.
 
 ## Quantization metadata
 
@@ -104,6 +125,13 @@ identified as upstream material; they are not described as AI-authored QW5 conte
 
 ## Model-specific requirements
 
+Before the generic inspector becomes a Terra task, a separate Sol task freezes one
+versioned classification-rule artifact per immutable model revision. Each rule names
+the exact configuration field or tensor-name pattern, output component/semantic
+class, permitted layer/expert captures, precedence, and negative examples. Rules must
+be exhaustive or leave tensors explicitly `unclassified`; the inspector cannot invent
+model semantics while implementing the parser.
+
 ### Qwen3-Coder-Next
 
 Use the owner-approved immutable revision. Reconcile every tensor against its pinned
@@ -122,8 +150,10 @@ names.
 ## Acceptance and negative cases
 
 Tests must reject a mutable revision, truncated hash, absolute path, missing consumed
-file, hash/size mismatch, duplicate file path, duplicate tensor name, unknown dtype,
-shape/element mismatch, out-of-range or overlapping storage, missing quantization
-metadata, non-reconciling totals, unclassified tensor used by a class-dependent
+file, hash/size mismatch on either pass, duplicate file path, false completeness,
+duplicate tensor name, unknown dtype, shape/element/byte mismatch, reversed,
+out-of-range, overlapping, or holed storage, missing quantization metadata,
+non-reconciling file/layer/expert totals, unclassified tensor used by a class-dependent
 placement, excluded vision tensor without a dependency rule, and private download or
-machine data.
+machine data. Hostile miniature vectors exercise these invariants without model
+weights or unsafe deserialization.

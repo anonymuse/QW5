@@ -5,20 +5,9 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "schema",
-    "artifact_role",
-    "evidence_class",
-    "created_at",
-    "producer",
-    "model",
-    "inputs",
-    "workload",
-    "quantization_candidate",
-    "size_reconciliation",
-    "node_budgets",
-    "allocations",
-    "network_edges",
-    "decision"
+    "schema", "artifact_role", "evidence_class", "created_at", "producer",
+    "model", "inputs", "workload", "quantization_candidate",
+    "size_reconciliation", "node_budgets", "allocations", "network_edges", "decision"
   ],
   "properties": {
     "schema": { "const": "qw5.placement-analysis/v1" },
@@ -39,42 +28,48 @@
     "inputs": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["model_manifest", "tensor_inventory", "hardware_inventory", "link_profile", "formula_set"],
+      "required": [
+        "model_manifest", "tensor_inventory", "hardware_inventory", "memory_baseline",
+        "link_summary", "quantization_layout", "formula_set", "text_subset_dependency"
+      ],
       "properties": {
         "model_manifest": { "$ref": "#/$defs/input" },
         "tensor_inventory": { "$ref": "#/$defs/input" },
-        "hardware_inventory": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["A", "B", "C"],
-          "properties": {
-            "A": { "$ref": "#/$defs/input" },
-            "B": { "$ref": "#/$defs/input" },
-            "C": { "$ref": "#/$defs/input" }
-          }
-        },
-        "link_profile": { "anyOf": [{ "$ref": "#/$defs/input" }, { "type": "null" }] },
-        "formula_set": { "$ref": "#/$defs/input" }
+        "hardware_inventory": { "$ref": "#/$defs/node_inputs" },
+        "memory_baseline": { "$ref": "#/$defs/node_inputs" },
+        "link_summary": { "anyOf": [{ "$ref": "#/$defs/input" }, { "type": "null" }] },
+        "quantization_layout": { "$ref": "#/$defs/input" },
+        "formula_set": { "$ref": "#/$defs/input" },
+        "text_subset_dependency": { "anyOf": [{ "$ref": "#/$defs/input" }, { "type": "null" }] }
       }
     },
     "workload": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["phase", "batch_size", "context_tokens", "prompt_tokens", "generated_token_allowance", "sequence_count", "condition_class"],
+      "required": [
+        "phase", "batch_size", "context_tokens", "prompt_tokens",
+        "generated_token_allowance", "sequence_count", "cache_policy_id",
+        "state_formula_id", "condition_class"
+      ],
       "properties": {
         "phase": { "enum": ["prefill", "decode"] },
         "batch_size": { "const": 1 },
         "context_tokens": { "enum": [4096, 32768, 262144] },
         "prompt_tokens": { "type": "integer", "minimum": 0 },
         "generated_token_allowance": { "type": "integer", "minimum": 0 },
-        "sequence_count": { "type": "integer", "minimum": 1 },
+        "sequence_count": { "const": 1 },
+        "cache_policy_id": { "type": "string", "minLength": 1 },
+        "state_formula_id": { "type": "string", "minLength": 1 },
         "condition_class": { "const": "TARGET" }
       }
     },
     "quantization_candidate": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["candidate_id", "layout_spec_sha256", "weight_bits", "mixed_precision", "quality_evidence_sha256", "assumptions"],
+      "required": [
+        "candidate_id", "layout_spec_sha256", "weight_bits", "mixed_precision",
+        "quality_evidence_sha256", "assumptions"
+      ],
       "properties": {
         "candidate_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9.-]*$" },
         "layout_spec_sha256": { "$ref": "#/$defs/sha256" },
@@ -87,7 +82,11 @@
     "size_reconciliation": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["source_payload_bytes", "packed_weight_bytes", "quantization_metadata_bytes", "padding_alignment_bytes", "higher_precision_exception_bytes", "container_overhead_bytes", "total_bytes"],
+      "required": [
+        "source_payload_bytes", "packed_weight_bytes", "quantization_metadata_bytes",
+        "padding_alignment_bytes", "higher_precision_exception_bytes",
+        "container_overhead_bytes", "total_bytes"
+      ],
       "properties": {
         "source_payload_bytes": { "$ref": "#/$defs/bytes" },
         "packed_weight_bytes": { "$ref": "#/$defs/bytes" },
@@ -100,33 +99,71 @@
     },
     "node_budgets": {
       "type": "array",
-      "minItems": 1,
+      "minItems": 3,
       "maxItems": 3,
       "uniqueItems": true,
       "items": { "$ref": "#/$defs/node_budget" }
     },
-    "allocations": {
-      "type": "array",
-      "minItems": 1,
-      "items": { "$ref": "#/$defs/allocation" }
-    },
-    "network_edges": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/network_edge" }
-    },
+    "allocations": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/allocation" } },
+    "network_edges": { "type": "array", "items": { "$ref": "#/$defs/network_edge" } },
     "decision": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["decision_scope", "outcome", "passed_gates", "failed_gates", "unresolved_gates", "next_permitted_task", "prohibited_claims"],
+      "required": [
+        "decision_scope", "outcome", "required_gates", "passed_gates",
+        "failed_gates", "unresolved_gates", "next_permitted_task", "prohibited_claims"
+      ],
       "properties": {
         "decision_scope": { "const": "m1_memory_placement" },
         "outcome": { "enum": ["GO", "CONDITIONAL_GO", "NO_GO", "UNDETERMINED"] },
+        "required_gates": { "$ref": "#/$defs/gate_ids" },
         "passed_gates": { "$ref": "#/$defs/gate_ids" },
         "failed_gates": { "$ref": "#/$defs/gate_ids" },
         "unresolved_gates": { "$ref": "#/$defs/gate_ids" },
         "next_permitted_task": { "type": ["string", "null"] },
         "prohibited_claims": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
-      }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "outcome": { "const": "GO" } }, "required": ["outcome"] },
+          "then": {
+            "properties": {
+              "failed_gates": { "maxItems": 0 },
+              "unresolved_gates": { "maxItems": 0 },
+              "next_permitted_task": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "outcome": { "const": "CONDITIONAL_GO" } }, "required": ["outcome"] },
+          "then": {
+            "properties": {
+              "failed_gates": { "maxItems": 0 },
+              "unresolved_gates": { "minItems": 1 },
+              "next_permitted_task": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "outcome": { "const": "NO_GO" } }, "required": ["outcome"] },
+          "then": {
+            "properties": {
+              "failed_gates": { "minItems": 1 },
+              "next_permitted_task": { "const": null }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "outcome": { "const": "UNDETERMINED" } }, "required": ["outcome"] },
+          "then": {
+            "properties": {
+              "failed_gates": { "maxItems": 0 },
+              "unresolved_gates": { "minItems": 1 },
+              "next_permitted_task": { "const": null }
+            }
+          }
+        }
+      ]
     }
   },
   "$defs": {
@@ -154,20 +191,34 @@
       "required": ["sha256", "schema", "evidence_class"],
       "properties": {
         "sha256": { "$ref": "#/$defs/sha256" },
-        "schema": { "type": "string", "minLength": 1 },
+        "schema": { "type": "string", "pattern": "^qw5\\.[a-z0-9.-]+/v[0-9]+$" },
         "evidence_class": { "enum": ["MEASURED", "SIMULATED", "ESTIMATED", "TARGET"] }
+      }
+    },
+    "node_inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["A", "B", "C"],
+      "properties": {
+        "A": { "$ref": "#/$defs/input" },
+        "B": { "$ref": "#/$defs/input" },
+        "C": { "$ref": "#/$defs/input" }
       }
     },
     "node_budget": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["node", "measured_available_baseline_bytes", "os_reserve_bytes", "safety_reserve_bytes", "placement_budget_bytes", "allocated_bytes", "headroom_bytes"],
+      "required": [
+        "node", "physical_bytes", "baseline_available_bytes", "os_reserve_bytes",
+        "safety_reserve_bytes", "placement_budget_bytes", "allocated_bytes", "headroom_bytes"
+      ],
       "properties": {
         "node": { "$ref": "#/$defs/node" },
-        "measured_available_baseline_bytes": { "$ref": "#/$defs/bytes" },
+        "physical_bytes": { "$ref": "#/$defs/bytes" },
+        "baseline_available_bytes": { "$ref": "#/$defs/bytes" },
         "os_reserve_bytes": { "$ref": "#/$defs/bytes" },
         "safety_reserve_bytes": { "$ref": "#/$defs/bytes" },
-        "placement_budget_bytes": { "$ref": "#/$defs/bytes" },
+        "placement_budget_bytes": { "type": "integer" },
         "allocated_bytes": { "$ref": "#/$defs/bytes" },
         "headroom_bytes": { "type": "integer" }
       }
@@ -179,7 +230,13 @@
       "properties": {
         "allocation_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9.-]*$" },
         "node": { "$ref": "#/$defs/node" },
-        "class": { "enum": ["allocator", "artifact_staging", "control", "fragmentation", "kv_state", "recurrent_state", "router_state", "scratch", "transport", "weights"] },
+        "class": {
+          "enum": [
+            "allocator", "artifact_staging", "control", "fragmentation", "kv_state",
+            "quantization_metadata", "recurrent_state", "router_state", "scratch",
+            "transport", "weights"
+          ]
+        },
         "bytes": { "$ref": "#/$defs/bytes" },
         "evidence_class": { "enum": ["MEASURED", "ESTIMATED", "TARGET"] },
         "tensor_set_id": { "type": ["string", "null"] },
@@ -197,20 +254,27 @@
     "network_edge": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["source", "destination", "message_class", "payload_bytes", "messages_per_token", "link_profile_sha256"],
+      "required": ["source", "destination", "message_class", "payload_bytes", "messages_per_million_tokens", "link_summary_sha256"],
       "properties": {
         "source": { "$ref": "#/$defs/node" },
         "destination": { "$ref": "#/$defs/node" },
         "message_class": { "enum": ["artifact_identity", "control", "expert_dispatch", "expert_result", "layer_state", "telemetry"] },
         "payload_bytes": { "$ref": "#/$defs/bytes" },
-        "messages_per_token": { "type": "number", "minimum": 0 },
-        "link_profile_sha256": { "$ref": "#/$defs/sha256" }
+        "messages_per_million_tokens": { "type": "integer", "minimum": 0 },
+        "link_summary_sha256": { "$ref": "#/$defs/sha256" }
       }
     },
     "gate_ids": {
       "type": "array",
       "uniqueItems": true,
-      "items": { "enum": ["artifact_complete", "layout_complete", "memory_nonnegative", "quality_available", "scratch_bounded", "state_bounded", "transport_profile_available"] }
+      "items": {
+        "enum": [
+          "artifact_complete", "tensor_reconciled", "layout_complete",
+          "memory_baseline_accepted", "memory_nonnegative", "quality_available",
+          "scratch_bounded", "state_bounded", "transport_profile_available",
+          "text_subset_proven"
+        ]
+      }
     }
   }
 }

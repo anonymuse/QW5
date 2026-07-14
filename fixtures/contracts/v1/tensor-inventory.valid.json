@@ -20,11 +20,20 @@
     "name": "fixture",
     "version": "1",
     "byte_order": "little",
-    "ordering": "tensor_name_lexicographic"
+    "ordering": "tensor_name_lexicographic",
+    "range_policy": "contiguous_no_overlap"
   },
+  "source_files": [
+    {
+      "path": "model-00001-of-00001.safetensors",
+      "size_bytes": 32,
+      "header_bytes": 16,
+      "data_bytes": 16
+    }
+  ],
   "tensors": [
     {
-      "name": "fixture.weight",
+      "name": "fixture.embedding",
       "source_file": "model-00001-of-00001.safetensors",
       "source_dtype": "F16",
       "normalized_dtype": "float16",
@@ -34,23 +43,52 @@
       "data_offsets": [0, 8],
       "component": "language",
       "semantic_class": "embedding",
-      "classification": { "status": "classified", "rule_id": "fixture-rule" },
+      "classification": {"status": "classified", "rule_id": "fixture-embedding"},
       "layer_index": null,
       "expert_index": null,
       "shard_index": 0,
-      "storage_id": "fixture-storage",
+      "storage_id": "fixture-storage-0",
+      "alias_of": null,
+      "quantization": null
+    },
+    {
+      "name": "fixture.output",
+      "source_file": "model-00001-of-00001.safetensors",
+      "source_dtype": "F16",
+      "normalized_dtype": "float16",
+      "shape": [2, 2],
+      "element_count": 4,
+      "stored_bytes": 8,
+      "data_offsets": [8, 16],
+      "component": "language",
+      "semantic_class": "output_head",
+      "classification": {"status": "classified", "rule_id": "fixture-output"},
+      "layer_index": null,
+      "expert_index": null,
+      "shard_index": 0,
+      "storage_id": "fixture-storage-1",
       "alias_of": null,
       "quantization": null
     }
   ],
   "totals": {
-    "tensor_count": 1,
-    "element_count": 4,
-    "tensor_payload_bytes": 8,
-    "container_overhead_bytes": 8,
-    "by_component": { "language": 8 },
-    "by_dtype": { "float16": 8 },
-    "by_semantic_class": { "embedding": 8 }
+    "tensor_count": 2,
+    "element_count": 8,
+    "tensor_payload_bytes": 16,
+    "container_overhead_bytes": 16,
+    "by_file": {
+      "model-00001-of-00001.safetensors": {
+        "tensor_count": 2,
+        "element_count": 8,
+        "tensor_payload_bytes": 16,
+        "container_overhead_bytes": 16
+      }
+    },
+    "by_component": {"language": 16},
+    "by_dtype": {"float16": 16},
+    "by_semantic_class": {"embedding": 8, "output_head": 8},
+    "by_layer": {"none": 16},
+    "by_expert_class": {"none": 16}
   },
   "unclassified_tensors": [],
   "errors": []

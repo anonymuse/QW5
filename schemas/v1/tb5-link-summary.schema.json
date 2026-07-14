@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/anonymuse/QW5/schemas/v1/tb5-link-summary.schema.json",
+  "title": "QW5 Thunderbolt 5 link summary v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "artifact_role", "evidence_class", "created_at", "producer",
+    "plan_sha256", "plan_seed", "measurement_index_sha256", "local_controls_sha256",
+    "coverage", "cells", "prohibited_claims"
+  ],
+  "properties": {
+    "schema": { "const": "qw5.tb5-link-summary/v1" },
+    "artifact_role": { "enum": ["link_summary", "schema_fixture"] },
+    "evidence_class": { "enum": ["MEASURED", "SIMULATED"] },
+    "created_at": { "$ref": "#/$defs/timestamp" },
+    "producer": { "$ref": "#/$defs/producer" },
+    "plan_sha256": { "$ref": "#/$defs/sha256" },
+    "plan_seed": { "type": "integer", "minimum": 0, "maximum": 18446744073709551615 },
+    "measurement_index_sha256": { "$ref": "#/$defs/sha256" },
+    "local_controls_sha256": { "$ref": "#/$defs/sha256" },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["planned_cells", "complete_cells", "failed_cells", "aborted_cells", "undetermined_cells"],
+      "properties": {
+        "planned_cells": { "const": 246 },
+        "complete_cells": { "type": "integer", "minimum": 0, "maximum": 246 },
+        "failed_cells": { "type": "integer", "minimum": 0, "maximum": 246 },
+        "aborted_cells": { "type": "integer", "minimum": 0, "maximum": 246 },
+        "undetermined_cells": { "type": "integer", "minimum": 0, "maximum": 246 }
+      }
+    },
+    "cells": {
+      "type": "array",
+      "minItems": 246,
+      "maxItems": 246,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/cell" }
+    },
+    "prohibited_claims": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "artifact_role": { "const": "link_summary" } }, "required": ["artifact_role"] },
+      "then": { "properties": { "evidence_class": { "const": "MEASURED" } } },
+      "else": { "properties": { "evidence_class": { "const": "SIMULATED" } } }
+    }
+  ],
+  "$defs": {
+    "timestamp": { "type": "string", "format": "date-time", "pattern": "Z$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "git_commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "executable_sha256", "qw5_commit", "dirty"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "executable_sha256": { "$ref": "#/$defs/sha256" },
+        "qw5_commit": { "$ref": "#/$defs/git_commit" },
+        "dirty": { "type": "boolean" }
+      }
+    },
+    "metric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sample_count", "median", "median_absolute_deviation", "p95", "minimum", "maximum", "unit"],
+      "properties": {
+        "sample_count": { "type": "integer", "minimum": 0 },
+        "median": { "type": ["integer", "null"], "minimum": 0 },
+        "median_absolute_deviation": { "type": ["integer", "null"], "minimum": 0 },
+        "p95": { "type": ["integer", "null"], "minimum": 0 },
+        "minimum": { "type": ["integer", "null"], "minimum": 0 },
+        "maximum": { "type": ["integer", "null"], "minimum": 0 },
+        "unit": { "enum": ["bytes_per_second", "ns"] }
+      }
+    },
+    "flow_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["flow_id", "throughput", "round_trip_latency"],
+      "properties": {
+        "flow_id": { "type": "string", "pattern": "^[a-c]-[a-c]$" },
+        "throughput": { "$ref": "#/$defs/metric" },
+        "round_trip_latency": { "$ref": "#/$defs/metric" }
+      }
+    },
+    "cell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cell_id", "schedule_index", "mode", "scenario_id", "payload_bytes", "status", "measurement_sha256", "flow_summaries", "aggregate_throughput", "thermal_regimes"],
+      "properties": {
+        "cell_id": { "type": "string", "pattern": "^(stream|round-trip):[a-z0-9-]+:[0-9]+$" },
+        "schedule_index": { "type": "integer", "minimum": 0, "maximum": 245 },
+        "mode": { "enum": ["stream", "round_trip"] },
+        "scenario_id": { "type": "string", "minLength": 1 },
+        "payload_bytes": { "type": "integer", "minimum": 1 },
+        "status": { "enum": ["COMPLETE", "FAILED", "ABORTED", "UNDETERMINED"] },
+        "measurement_sha256": { "$ref": "#/$defs/sha256" },
+        "flow_summaries": { "type": "array", "minItems": 1, "maxItems": 6, "items": { "$ref": "#/$defs/flow_summary" } },
+        "aggregate_throughput": { "$ref": "#/$defs/metric" },
+        "thermal_regimes": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
+      }
+    }
+  }
+}

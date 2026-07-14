@@ -67,6 +67,8 @@
       "port_alias": "tb-port-0",
       "negotiated_rate": { "status": "unavailable", "source_ref": "fixture.api" },
       "negotiated_width": { "status": "unavailable", "source_ref": "fixture.api" },
+      "negotiated_generation": { "status": "unavailable", "source_ref": "fixture.api" },
+      "negotiated_lanes": { "status": "unavailable", "source_ref": "fixture.api" },
       "source_ref": "fixture.api",
       "observed_at": "2000-01-01T00:00:00Z"
     },
@@ -80,6 +82,8 @@
       "port_alias": "tb-port-1",
       "negotiated_rate": { "status": "unavailable", "source_ref": "fixture.api" },
       "negotiated_width": { "status": "unavailable", "source_ref": "fixture.api" },
+      "negotiated_generation": { "status": "unavailable", "source_ref": "fixture.api" },
+      "negotiated_lanes": { "status": "unavailable", "source_ref": "fixture.api" },
       "source_ref": "fixture.api",
       "observed_at": "2000-01-01T00:00:00Z"
     }

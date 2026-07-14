@@ -1,0 +1,136 @@
+{
+  "schema": "qw5.tb5-measurement/v1",
+  "artifact_role": "schema_fixture",
+  "evidence_class": "SIMULATED",
+  "run_id": "fixture-round-trip",
+  "cell_id": "round-trip:solo-a-b:4194304",
+  "created_at": "2000-01-01T00:00:02Z",
+  "identity": {
+    "qw5_commit": "2222222222222222222222222222222222222222",
+    "dirty": false,
+    "plan_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+    "harness_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+    "route_proof_sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+    "inventory_sha256": {
+      "A": "5555555555555555555555555555555555555555555555555555555555555555",
+      "B": "6666666666666666666666666666666666666666666666666666666666666666",
+      "C": "7777777777777777777777777777777777777777777777777777777777777777"
+    }
+  },
+  "plan_seed": 42,
+  "schedule_index": 15,
+  "scenario": {
+    "scenario_id": "solo-a-b",
+    "flows": [{"flow_id": "a-b", "source": "A", "destination": "B", "route_alias": "A-B"}],
+    "start_skew_limit_ns": 10000000,
+    "maximum_sync_uncertainty_ns": 1000000
+  },
+  "payload_bytes": 4194304,
+  "mode": "round_trip",
+  "framing": {
+    "protocol": "qw5-tb5-wire/v1",
+    "handshake_bytes": 96,
+    "data_header_bytes": 64,
+    "digest_trailer_bytes": 32,
+    "ack_bytes": 64,
+    "checksum": "sha256"
+  },
+  "socket_settings": [
+    {
+      "flow_id": "a-b", "endpoint": "A",
+      "requested": {"tcp_nodelay": true, "send_buffer_bytes": 1048576, "receive_buffer_bytes": 1048576, "address_family": "ipv6", "congestion_control": {"status": "unavailable", "method": "synthetic fixture"}, "maximum_segment_bytes": {"status": "unavailable", "method": "synthetic fixture"}},
+      "effective": {"tcp_nodelay": true, "send_buffer_bytes": 1048576, "receive_buffer_bytes": 1048576, "address_family": "ipv6", "congestion_control": {"status": "unavailable", "method": "synthetic fixture"}, "maximum_segment_bytes": {"status": "unavailable", "method": "synthetic fixture"}}
+    },
+    {
+      "flow_id": "a-b", "endpoint": "B",
+      "requested": {"tcp_nodelay": true, "send_buffer_bytes": 1048576, "receive_buffer_bytes": 1048576, "address_family": "ipv6", "congestion_control": {"status": "unavailable", "method": "synthetic fixture"}, "maximum_segment_bytes": {"status": "unavailable", "method": "synthetic fixture"}},
+      "effective": {"tcp_nodelay": true, "send_buffer_bytes": 1048576, "receive_buffer_bytes": 1048576, "address_family": "ipv6", "congestion_control": {"status": "unavailable", "method": "synthetic fixture"}, "maximum_segment_bytes": {"status": "unavailable", "method": "synthetic fixture"}}
+    }
+  ],
+  "attempts": [
+    {
+      "attempt_id": "warmup-001", "phase": "warmup", "attempt_index": 1,
+      "valid": true, "invalid_reasons": [], "coordinator_release_at": "2000-01-01T00:00:00Z",
+      "synchronization": {"status": "not_required", "method": "not_required", "calibration_rounds": null, "coordinator_receipt_skew_ns": null, "maximum_control_rtt_ns": null, "maximum_worker_start_ack_ns": null, "timer_resolution_allowance_ns": null, "uncertainty_ns": null, "start_skew_upper_bound_ns": null, "evidence_sha256": null},
+      "thermal": [
+        {"node": "A", "start_monotonic_ns": 0, "end_monotonic_ns": 1000000, "start_state": "nominal", "end_state": "nominal", "start_low_power_mode": false, "end_low_power_mode": false, "start_power_source": null, "end_power_source": null},
+        {"node": "B", "start_monotonic_ns": 0, "end_monotonic_ns": 1000000, "start_state": "nominal", "end_state": "nominal", "start_low_power_mode": false, "end_low_power_mode": false, "start_power_source": null, "end_power_source": null}
+      ],
+      "flows": [
+        {
+          "flow_id": "a-b", "source_monotonic_start_ns": 0, "source_monotonic_end_ns": 1000000,
+          "receiver_monotonic_start_ns": 0, "receiver_monotonic_end_ns": 1000000,
+          "messages": 20, "logical_payload_bytes": 83886080, "header_bytes": 1280,
+          "digest_trailer_bytes": 640, "ack_bytes": 1280,
+          "source_socket_bytes": {"status": "available", "value": 83889280, "method": "synthetic fixture"},
+          "receiver_socket_bytes": {"status": "available", "value": 83889280, "method": "synthetic fixture"},
+          "checksum_algorithm": "sha256", "checksum_count": 20, "checksum_elapsed_ns": 2000,
+          "sequence_first": 0, "sequence_last": 19,
+          "round_trip_ns": [1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000],
+          "copies": [
+            {"endpoint": "A", "stage": "producer_to_send", "status": "available", "evidence_class": "SIMULATED", "count": 20, "bytes": 83886080, "observation_method": "synthetic fixture"},
+            {"endpoint": "A", "stage": "send_to_transport", "status": "unavailable", "evidence_class": null, "observation_method": "synthetic fixture"},
+            {"endpoint": "A", "stage": "kernel_dma_hardware", "status": "unavailable", "evidence_class": null, "observation_method": "synthetic fixture"},
+            {"endpoint": "B", "stage": "transport_to_receive", "status": "unavailable", "evidence_class": null, "observation_method": "synthetic fixture"},
+            {"endpoint": "B", "stage": "receive_to_consumer", "status": "available", "evidence_class": "SIMULATED", "count": 20, "bytes": 83886080, "observation_method": "synthetic fixture"},
+            {"endpoint": "B", "stage": "kernel_dma_hardware", "status": "unavailable", "evidence_class": null, "observation_method": "synthetic fixture"}
+          ],
+          "errors": []
+        }
+      ],
+      "errors": []
+    },
+    {
+      "attempt_id": "sample-001", "phase": "measurement", "attempt_index": 1,
+      "valid": true, "invalid_reasons": [], "coordinator_release_at": "2000-01-01T00:00:01Z",
+      "synchronization": {"status": "not_required", "method": "not_required", "calibration_rounds": null, "coordinator_receipt_skew_ns": null, "maximum_control_rtt_ns": null, "maximum_worker_start_ack_ns": null, "timer_resolution_allowance_ns": null, "uncertainty_ns": null, "start_skew_upper_bound_ns": null, "evidence_sha256": null},
+      "thermal": [
+        {"node": "A", "start_monotonic_ns": 2000000, "end_monotonic_ns": 3000000, "start_state": "nominal", "end_state": "nominal", "start_low_power_mode": false, "end_low_power_mode": false, "start_power_source": null, "end_power_source": null},
+        {"node": "B", "start_monotonic_ns": 2000000, "end_monotonic_ns": 3000000, "start_state": "nominal", "end_state": "nominal", "start_low_power_mode": false, "end_low_power_mode": false, "start_power_source": null, "end_power_source": null}
+      ],
+      "flows": [
+        {
+          "flow_id": "a-b", "source_monotonic_start_ns": 2000000, "source_monotonic_end_ns": 3000000,
+          "receiver_monotonic_start_ns": 2000000, "receiver_monotonic_end_ns": 3000000,
+          "messages": 100, "logical_payload_bytes": 419430400, "header_bytes": 6400,
+          "digest_trailer_bytes": 3200, "ack_bytes": 6400,
+          "source_socket_bytes": {"status": "available", "value": 419446400, "method": "synthetic fixture"},
+          "receiver_socket_bytes": {"status": "available", "value": 419446400, "method": "synthetic fixture"},
+          "checksum_algorithm": "sha256", "checksum_count": 100, "checksum_elapsed_ns": 10000,
+          "sequence_first": 20, "sequence_last": 119,
+          "round_trip_ns": [1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000],
+          "copies": [
+            {"endpoint": "A", "stage": "producer_to_send", "status": "available", "evidence_class": "SIMULATED", "count": 100, "bytes": 419430400, "observation_method": "synthetic fixture"},
+            {"endpoint": "A", "stage": "send_to_transport", "status": "unavailable", "evidence_class": null, "observation_method": "synthetic fixture"},
+            {"endpoint": "A", "stage": "kernel_dma_hardware", "status": "unavailable", "evidence_class": null, "observation_method": "synthetic fixture"},
+            {"endpoint": "B", "stage": "transport_to_receive", "status": "unavailable", "evidence_class": null, "observation_method": "synthetic fixture"},
+            {"endpoint": "B", "stage": "receive_to_consumer", "status": "available", "evidence_class": "SIMULATED", "count": 100, "bytes": 419430400, "observation_method": "synthetic fixture"},
+            {"endpoint": "B", "stage": "kernel_dma_hardware", "status": "unavailable", "evidence_class": null, "observation_method": "synthetic fixture"}
+          ],
+          "errors": []
+        }
+      ],
+      "errors": []
+    }
+  ],
+  "summary": {
+    "cell_status": "COMPLETE",
+    "warmup_attempts": 1,
+    "measurement_attempts": 1,
+    "valid_measurement_attempts": 1,
+    "invalid_measurement_attempts": 0,
+    "replacement_attempts": 0,
+    "flow_summaries": [
+      {
+        "flow_id": "a-b", "valid_attempts": 1, "invalid_attempts": 0,
+        "throughput": {"sample_count": 0, "median": null, "median_absolute_deviation": null, "p95": null, "minimum": null, "maximum": null, "unit": "bytes_per_second"},
+        "round_trip_latency": {"sample_count": 100, "median": 1000, "median_absolute_deviation": 0, "p95": 1000, "minimum": 1000, "maximum": 1000, "unit": "ns"},
+        "thermal_regimes": ["nominal"]
+      }
+    ],
+    "aggregate_throughput": {"sample_count": 0, "median": null, "median_absolute_deviation": null, "p95": null, "minimum": null, "maximum": null, "unit": "bytes_per_second"},
+    "thermal_regimes": ["nominal"]
+  },
+  "exclusions": [],
+  "errors": []
+}

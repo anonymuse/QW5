@@ -9,6 +9,10 @@ mapping remains outside the artifact.
 
 The JSON Schema is
 [`hardware-inventory.schema.json`](../../schemas/v1/hardware-inventory.schema.json).
+Artifact identity uses [`qw5-json-c14n-v1`](canonical-json-v1.md). The schema binds
+every required fact ID to its exact value type and unit; the repository semantic
+validator enforces uniqueness, references, peer coverage, and route relationships
+that JSON Schema cannot express portably.
 
 ## Artifact identity
 
@@ -106,10 +110,18 @@ Relevant Apple documentation includes
 [`isLowPowerModeEnabled`](https://developer.apple.com/documentation/foundation/processinfo/islowpowermodeenabled),
 and [checking volume storage capacity](https://developer.apple.com/documentation/foundation/checking-volume-storage-capacity).
 
-Objects use schema order; sources sort by `source_id`; facts by `fact_id`; links by
-`peer_alias`; errors by `code`. Collection timestamps and live availability values are
-expected to vary, but repeated serialization of the same in-memory record must be
-byte-identical.
+Sources sort by `source_id`; fact members serialize in canonical member-name order;
+links by `peer_alias`; errors by `code`. Collection timestamps and live availability
+values are expected to vary, but repeated serialization of the same in-memory record
+must produce identical canonical bytes. Duplicate source IDs and dangling
+`source_ref` values fail semantic validation even when the source objects differ in
+other fields.
+
+`links` has exactly the other two node aliases, never the collecting node. Its route
+alias is the sorted physical pair (`A-B`, `A-C`, or `B-C`). If link enumeration itself
+cannot run safely, `links` is empty and `collection_errors` contains the public-safe
+failure; a partial peer set is invalid. An `error` link or optional observation carries
+an error object, while an `unavailable` state does not.
 
 ## Acceptance and negative cases
 
@@ -120,8 +132,9 @@ A valid production inventory must:
   explicit top-level collection error;
 - use only public aliases;
 - provide sources for every available or failed observation;
-- report no forbidden field or raw private identifier; and
-- pass the v1 schema and privacy scan.
+- report no forbidden field or raw private identifier;
+- pass the v1 schema and privacy scan; and
+- pass `tools/validate_contracts.py`, including schema and semantic validation.
 
 Tests must reject a missing required fact, duplicate fact ID, available fact without a
 value, unavailable fact with an invented value, invalid unit/type pair, unknown node

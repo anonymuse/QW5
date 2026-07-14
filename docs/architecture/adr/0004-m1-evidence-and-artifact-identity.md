@@ -1,8 +1,8 @@
 # ADR-0004: M1 evidence and artifact identity
 
-- **Status:** Proposed for acceptance with the M1 planning pull request
+- **Status:** Proposed for acceptance with the M0 contract-completion and M1 planning pull request
 - **Date:** 2026-07-14
-- **Decision owners:** Project owner and M1 planning task
+- **Decision owners:** Project owner and M0 contract-completion/M1 planning task
 
 ## Context
 
@@ -38,10 +38,18 @@ upgrade their class. In particular, a placement calculation that consumes measur
 inventory remains `ESTIMATED` or `SIMULATED`; a desired threshold remains `TARGET`;
 and a schema fixture is never published as a cluster measurement.
 
-SHA-256 is computed over the exact file bytes. A manifest does not contain a
-self-referential digest. Its parent index, report, or sidecar records the manifest's
-digest. JSON member order is deterministic for QW5-produced artifacts to make review
-and diffs stable, but semantic identity never relies on key order alone.
+SHA-256 for JSON artifacts is computed over the exact `qw5-json-c14n-v1` bytes: UTF-8
+without BOM or trailing newline, NFC text, unique member names sorted by Unicode scalar
+value, minimal fixed escaping, no whitespace, and integer-only numbers in the declared
+range. Non-JSON files are hashed as exact raw bytes. A manifest does not contain a
+self-referential digest; its parent index, report, or sidecar records the digest.
+Exact canonicalization and wire vectors pin expected bytes and hashes.
+
+Draft 2020-12 structure is one validation layer. Versioned repository semantic
+validation additionally enforces uniqueness by stable ID, referential integrity,
+coverage matrices, arithmetic reconciliation, storage ranges, status transitions,
+and decision-gate logic. Positive fixtures and mutation-based hostile vectors run in
+CI with pinned validation dependencies.
 
 ## Public-safety boundary
 
@@ -54,6 +62,8 @@ machines during collection, but it is neither an M1 input nor a committed artifa
 
 - Contract schemas and public-safe examples live under `schemas/` and
   `fixtures/contracts/`.
+- Contract semantics live in the versioned repository validator and cannot be
+  reinterpreted independently by a later producer.
 - Large raw outputs may live in content-addressed external storage, referenced by a
   committed public-safe manifest.
 - Missing data can make a gate `undetermined`; it may not be replaced with a marketing

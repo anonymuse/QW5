@@ -1,8 +1,8 @@
 # ADR-0006: Memory fit is not deployment feasibility
 
-- **Status:** Proposed for acceptance with the M1 planning pull request
+- **Status:** Proposed for acceptance with the M0 contract-completion and M1 planning pull request
 - **Date:** 2026-07-14
-- **Decision owners:** Project owner and M1 planning task
+- **Decision owners:** Project owner and M0 contract-completion/M1 planning task
 
 ## Context
 
@@ -45,6 +45,17 @@ Each candidate records packing order, group shape and axis, scale and zero-point
 dtypes, outlier policy, alignment, padding, per-tensor exceptions, calibration
 identity where applicable, and output hashes when artifacts exist. Size evidence does
 not substitute for quality evidence.
+
+Available-memory evidence comes from a dedicated preregistered clean-node baseline,
+not one inventory snapshot. The observed OS reserve is physical bytes minus the
+fifth-percentile available baseline. Placement subtracts that OS reserve once and a
+separately owner-approved safety reserve selected before results are visible.
+
+Before a bounded analyzer can be routed to Terra, Sol freezes versioned
+quantization-layout, workload/formula, text-subset-dependency, model-specific gate,
+and placement-candidate artifacts. This decision task owns formula rounding, layout
+exceptions, safety reserve, solver objective, candidate placements, and the Qwen3.5
+text-path exclusion proof. Terra implements only the accepted contracts and tests.
 
 ## Consequences
 

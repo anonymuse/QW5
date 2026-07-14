@@ -5,18 +5,9 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "schema",
-    "artifact_role",
-    "evidence_class",
-    "created_at",
-    "model_manifest_sha256",
-    "model",
-    "producer",
-    "format",
-    "tensors",
-    "totals",
-    "unclassified_tensors",
-    "errors"
+    "schema", "artifact_role", "evidence_class", "created_at",
+    "model_manifest_sha256", "model", "producer", "format", "source_files",
+    "tensors", "totals", "unclassified_tensors", "errors"
   ],
   "properties": {
     "schema": { "const": "qw5.tensor-inventory/v1" },
@@ -37,13 +28,20 @@
     "format": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "version", "byte_order", "ordering"],
+      "required": ["name", "version", "byte_order", "ordering", "range_policy"],
       "properties": {
         "name": { "enum": ["safetensors", "qw5-derived", "fixture"] },
         "version": { "type": "string", "minLength": 1 },
         "byte_order": { "enum": ["little", "big", "not_applicable"] },
-        "ordering": { "const": "tensor_name_lexicographic" }
+        "ordering": { "const": "tensor_name_lexicographic" },
+        "range_policy": { "enum": ["contiguous_no_overlap", "declared_aliases"] }
       }
+    },
+    "source_files": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/source_file" }
     },
     "tensors": {
       "type": "array",
@@ -54,25 +52,60 @@
     "totals": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["tensor_count", "element_count", "tensor_payload_bytes", "container_overhead_bytes", "by_component", "by_dtype", "by_semantic_class"],
+      "required": [
+        "tensor_count", "element_count", "tensor_payload_bytes",
+        "container_overhead_bytes", "by_file", "by_component", "by_dtype",
+        "by_semantic_class", "by_layer", "by_expert_class"
+      ],
       "properties": {
         "tensor_count": { "type": "integer", "minimum": 0 },
         "element_count": { "type": "integer", "minimum": 0 },
         "tensor_payload_bytes": { "type": "integer", "minimum": 0 },
         "container_overhead_bytes": { "type": "integer", "minimum": 0 },
+        "by_file": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": { "$ref": "#/$defs/file_total" }
+        },
         "by_component": { "$ref": "#/$defs/nonnegative_totals" },
         "by_dtype": { "$ref": "#/$defs/nonnegative_totals" },
-        "by_semantic_class": { "$ref": "#/$defs/nonnegative_totals" }
+        "by_semantic_class": { "$ref": "#/$defs/nonnegative_totals" },
+        "by_layer": { "$ref": "#/$defs/nonnegative_totals" },
+        "by_expert_class": { "$ref": "#/$defs/nonnegative_totals" }
       }
     },
-    "unclassified_tensors": { "type": "array", "uniqueItems": true, "items": { "type": "string" } },
+    "unclassified_tensors": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
     "errors": { "type": "array", "items": { "$ref": "#/$defs/error" } }
   },
   "allOf": [
     {
-      "if": { "properties": { "artifact_role": { "const": "tensor_inventory" } } },
+      "if": { "properties": { "artifact_role": { "const": "tensor_inventory" } }, "required": ["artifact_role"] },
       "then": { "properties": { "evidence_class": { "const": "MEASURED" } } },
       "else": { "properties": { "evidence_class": { "const": "SIMULATED" } } }
+    },
+    {
+      "if": {
+        "properties": {
+          "format": {
+            "properties": { "name": { "const": "safetensors" } },
+            "required": ["name"]
+          }
+        },
+        "required": ["format"]
+      },
+      "then": {
+        "properties": {
+          "format": {
+            "properties": {
+              "byte_order": { "const": "little" },
+              "range_policy": { "const": "contiguous_no_overlap" }
+            }
+          },
+          "tensors": {
+            "items": { "properties": { "alias_of": { "const": null } } }
+          }
+        }
+      }
     }
   ],
   "$defs": {
@@ -102,6 +135,28 @@
         "message": { "type": "string", "minLength": 1 }
       }
     },
+    "source_file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "size_bytes", "header_bytes", "data_bytes"],
+      "properties": {
+        "path": { "$ref": "#/$defs/relative_path" },
+        "size_bytes": { "type": "integer", "minimum": 0 },
+        "header_bytes": { "type": "integer", "minimum": 0 },
+        "data_bytes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "file_total": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tensor_count", "element_count", "tensor_payload_bytes", "container_overhead_bytes"],
+      "properties": {
+        "tensor_count": { "type": "integer", "minimum": 0 },
+        "element_count": { "type": "integer", "minimum": 0 },
+        "tensor_payload_bytes": { "type": "integer", "minimum": 0 },
+        "container_overhead_bytes": { "type": "integer", "minimum": 0 }
+      }
+    },
     "nonnegative_totals": {
       "type": "object",
       "minProperties": 1,
@@ -113,8 +168,9 @@
       "required": [
         "scheme", "version", "weight_bits", "signed", "packing_word_bits",
         "packing_order", "byte_order", "alignment_bytes", "padding_bytes",
-        "group_shape", "group_axis", "group_count", "scale_dtype", "scale_bytes",
-        "zero_point_dtype", "zero_point_bytes", "auxiliary_storage_ids",
+        "group_shape", "group_axis", "group_count", "scale_dtype", "scale_shape",
+        "scale_bytes", "scale_storage_id", "zero_point_dtype", "zero_point_shape",
+        "zero_point_bytes", "zero_point_storage_id", "auxiliary_storage_ids",
         "higher_precision_exception", "source_tensor_sha256", "output_artifact_sha256",
         "calibration", "quality_evidence_sha256"
       ],
@@ -123,7 +179,7 @@
         "version": { "type": "string", "minLength": 1 },
         "weight_bits": { "type": "integer", "minimum": 1, "maximum": 16 },
         "signed": { "type": "boolean" },
-        "packing_word_bits": { "type": "integer", "enum": [8, 16, 32, 64] },
+        "packing_word_bits": { "enum": [8, 16, 32, 64] },
         "packing_order": { "type": "string", "minLength": 1 },
         "byte_order": { "enum": ["little", "big"] },
         "alignment_bytes": { "type": "integer", "minimum": 1 },
@@ -132,10 +188,14 @@
         "group_axis": { "type": "integer" },
         "group_count": { "type": "integer", "minimum": 1 },
         "scale_dtype": { "type": "string", "minLength": 1 },
+        "scale_shape": { "type": "array", "items": { "type": "integer", "minimum": 0 } },
         "scale_bytes": { "type": "integer", "minimum": 0 },
+        "scale_storage_id": { "type": "string", "minLength": 1 },
         "zero_point_dtype": { "type": ["string", "null"] },
+        "zero_point_shape": { "type": ["array", "null"], "items": { "type": "integer", "minimum": 0 } },
         "zero_point_bytes": { "type": "integer", "minimum": 0 },
-        "auxiliary_storage_ids": { "type": "array", "uniqueItems": true, "items": { "type": "string" } },
+        "zero_point_storage_id": { "type": ["string", "null"] },
+        "auxiliary_storage_ids": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
         "higher_precision_exception": { "type": ["string", "null"] },
         "source_tensor_sha256": { "$ref": "#/$defs/sha256" },
         "output_artifact_sha256": { "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] },
@@ -165,9 +225,13 @@
       "properties": {
         "name": { "type": "string", "minLength": 1 },
         "source_file": { "$ref": "#/$defs/relative_path" },
-        "source_dtype": { "type": "string", "minLength": 1 },
-        "normalized_dtype": { "type": "string", "minLength": 1 },
-        "shape": { "type": "array", "items": { "type": "integer", "minimum": 0 } },
+        "source_dtype": {
+          "enum": ["BOOL", "U8", "I8", "U16", "I16", "F16", "BF16", "U32", "I32", "F32", "U64", "I64", "F64"]
+        },
+        "normalized_dtype": {
+          "enum": ["bool8", "uint8", "int8", "uint16", "int16", "float16", "bfloat16", "uint32", "int32", "float32", "uint64", "int64", "float64"]
+        },
+        "shape": { "type": "array", "minItems": 1, "items": { "type": "integer", "minimum": 0 } },
         "element_count": { "type": "integer", "minimum": 0 },
         "stored_bytes": { "type": "integer", "minimum": 0 },
         "data_offsets": {

@@ -17,15 +17,22 @@
     "component_scope": "schema_fixture"
   },
   "inputs": {
-    "model_manifest": { "sha256": "0101010101010101010101010101010101010101010101010101010101010101", "schema": "qw5.model-artifact-manifest/v1", "evidence_class": "SIMULATED" },
-    "tensor_inventory": { "sha256": "0202020202020202020202020202020202020202020202020202020202020202", "schema": "qw5.tensor-inventory/v1", "evidence_class": "SIMULATED" },
+    "model_manifest": {"sha256": "0101010101010101010101010101010101010101010101010101010101010101", "schema": "qw5.model-artifact-manifest/v1", "evidence_class": "SIMULATED"},
+    "tensor_inventory": {"sha256": "0202020202020202020202020202020202020202020202020202020202020202", "schema": "qw5.tensor-inventory/v1", "evidence_class": "SIMULATED"},
     "hardware_inventory": {
-      "A": { "sha256": "0303030303030303030303030303030303030303030303030303030303030303", "schema": "qw5.hardware-inventory/v1", "evidence_class": "SIMULATED" },
-      "B": { "sha256": "0404040404040404040404040404040404040404040404040404040404040404", "schema": "qw5.hardware-inventory/v1", "evidence_class": "SIMULATED" },
-      "C": { "sha256": "0505050505050505050505050505050505050505050505050505050505050505", "schema": "qw5.hardware-inventory/v1", "evidence_class": "SIMULATED" }
+      "A": {"sha256": "0303030303030303030303030303030303030303030303030303030303030303", "schema": "qw5.hardware-inventory/v1", "evidence_class": "SIMULATED"},
+      "B": {"sha256": "0404040404040404040404040404040404040404040404040404040404040404", "schema": "qw5.hardware-inventory/v1", "evidence_class": "SIMULATED"},
+      "C": {"sha256": "0505050505050505050505050505050505050505050505050505050505050505", "schema": "qw5.hardware-inventory/v1", "evidence_class": "SIMULATED"}
     },
-    "link_profile": null,
-    "formula_set": { "sha256": "0606060606060606060606060606060606060606060606060606060606060606", "schema": "qw5.formula-set/fixture", "evidence_class": "TARGET" }
+    "memory_baseline": {
+      "A": {"sha256": "1111111111111111111111111111111111111111111111111111111111111111", "schema": "qw5.memory-baseline/v1", "evidence_class": "SIMULATED"},
+      "B": {"sha256": "1212121212121212121212121212121212121212121212121212121212121212", "schema": "qw5.memory-baseline/v1", "evidence_class": "SIMULATED"},
+      "C": {"sha256": "1313131313131313131313131313131313131313131313131313131313131313", "schema": "qw5.memory-baseline/v1", "evidence_class": "SIMULATED"}
+    },
+    "link_summary": null,
+    "quantization_layout": {"sha256": "0707070707070707070707070707070707070707070707070707070707070707", "schema": "qw5.quantization-layout/v1", "evidence_class": "TARGET"},
+    "formula_set": {"sha256": "0606060606060606060606060606060606060606060606060606060606060606", "schema": "qw5.formula-set/v1", "evidence_class": "TARGET"},
+    "text_subset_dependency": null
   },
   "workload": {
     "phase": "decode",
@@ -34,6 +41,8 @@
     "prompt_tokens": 4095,
     "generated_token_allowance": 1,
     "sequence_count": 1,
+    "cache_policy_id": "fixture-cache",
+    "state_formula_id": "fixture-state",
     "condition_class": "TARGET"
   },
   "quantization_candidate": {
@@ -56,12 +65,33 @@
   "node_budgets": [
     {
       "node": "A",
-      "measured_available_baseline_bytes": 32,
+      "physical_bytes": 32,
+      "baseline_available_bytes": 24,
       "os_reserve_bytes": 8,
       "safety_reserve_bytes": 8,
       "placement_budget_bytes": 16,
       "allocated_bytes": 8,
       "headroom_bytes": 8
+    },
+    {
+      "node": "B",
+      "physical_bytes": 32,
+      "baseline_available_bytes": 24,
+      "os_reserve_bytes": 8,
+      "safety_reserve_bytes": 8,
+      "placement_budget_bytes": 16,
+      "allocated_bytes": 0,
+      "headroom_bytes": 16
+    },
+    {
+      "node": "C",
+      "physical_bytes": 32,
+      "baseline_available_bytes": 24,
+      "os_reserve_bytes": 8,
+      "safety_reserve_bytes": 8,
+      "placement_budget_bytes": 16,
+      "allocated_bytes": 0,
+      "headroom_bytes": 16
     }
   ],
   "allocations": [
@@ -79,9 +109,21 @@
   "decision": {
     "decision_scope": "m1_memory_placement",
     "outcome": "UNDETERMINED",
-    "passed_gates": ["artifact_complete", "layout_complete", "memory_nonnegative"],
+    "required_gates": [
+      "artifact_complete", "tensor_reconciled", "layout_complete",
+      "memory_baseline_accepted", "memory_nonnegative", "quality_available",
+      "scratch_bounded", "state_bounded", "transport_profile_available",
+      "text_subset_proven"
+    ],
+    "passed_gates": [
+      "artifact_complete", "tensor_reconciled", "layout_complete",
+      "memory_baseline_accepted", "memory_nonnegative"
+    ],
     "failed_gates": [],
-    "unresolved_gates": ["quality_available", "scratch_bounded", "state_bounded", "transport_profile_available"],
+    "unresolved_gates": [
+      "quality_available", "scratch_bounded", "state_bounded",
+      "transport_profile_available", "text_subset_proven"
+    ],
     "next_permitted_task": null,
     "prohibited_claims": ["This synthetic fixture does not show that any model runs."]
   }

@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/anonymuse/QW5/schemas/v1/tb5-route-proof.schema.json",
+  "title": "QW5 Thunderbolt 5 route proof v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "artifact_role", "evidence_class", "created_at", "producer",
+    "inventory_sha256", "routes", "forbidden_identifiers_redacted", "errors"
+  ],
+  "properties": {
+    "schema": { "const": "qw5.tb5-route-proof/v1" },
+    "artifact_role": { "enum": ["route_proof", "schema_fixture"] },
+    "evidence_class": { "enum": ["MEASURED", "SIMULATED"] },
+    "created_at": { "$ref": "#/$defs/timestamp" },
+    "producer": { "$ref": "#/$defs/producer" },
+    "inventory_sha256": { "$ref": "#/$defs/node_digests" },
+    "routes": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/route" }
+    },
+    "forbidden_identifiers_redacted": { "const": true },
+    "errors": { "type": "array", "items": { "$ref": "#/$defs/error" } }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "artifact_role": { "const": "route_proof" } }, "required": ["artifact_role"] },
+      "then": { "properties": { "evidence_class": { "const": "MEASURED" } } },
+      "else": { "properties": { "evidence_class": { "const": "SIMULATED" } } }
+    }
+  ],
+  "$defs": {
+    "timestamp": { "type": "string", "format": "date-time", "pattern": "Z$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "git_commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "node": { "enum": ["A", "B", "C"] },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message"],
+      "properties": {
+        "code": { "type": "string", "pattern": "^[A-Z0-9_]+$" },
+        "message": { "type": "string", "minLength": 1 }
+      }
+    },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "executable_sha256", "qw5_commit", "dirty"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "executable_sha256": { "$ref": "#/$defs/sha256" },
+        "qw5_commit": { "$ref": "#/$defs/git_commit" },
+        "dirty": { "type": "boolean" }
+      }
+    },
+    "node_digests": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["A", "B", "C"],
+      "properties": {
+        "A": { "$ref": "#/$defs/sha256" },
+        "B": { "$ref": "#/$defs/sha256" },
+        "C": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "route": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "flow_id", "source", "destination", "route_alias", "status", "direct",
+        "coordinator_relay", "proof_method", "observed_at", "error"
+      ],
+      "properties": {
+        "flow_id": { "type": "string", "pattern": "^[a-c]-[a-c]$" },
+        "source": { "$ref": "#/$defs/node" },
+        "destination": { "$ref": "#/$defs/node" },
+        "route_alias": { "type": "string", "pattern": "^[A-C]-[A-C]$" },
+        "status": { "enum": ["verified", "unavailable", "error"] },
+        "direct": { "type": ["boolean", "null"] },
+        "coordinator_relay": { "type": ["boolean", "null"] },
+        "proof_method": { "type": "string", "minLength": 1 },
+        "observed_at": { "$ref": "#/$defs/timestamp" },
+        "error": { "anyOf": [{ "$ref": "#/$defs/error" }, { "type": "null" }] }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "status": { "const": "verified" },
+            "direct": { "const": true },
+            "coordinator_relay": { "const": false },
+            "error": { "const": null }
+          }
+        },
+        {
+          "properties": {
+            "status": { "const": "unavailable" },
+            "direct": { "const": null },
+            "coordinator_relay": { "const": null },
+            "error": { "const": null }
+          }
+        },
+        {
+          "properties": {
+            "status": { "const": "error" },
+            "direct": { "const": null },
+            "coordinator_relay": { "const": null },
+            "error": { "$ref": "#/$defs/error" }
+          }
+        }
+      ]
+    }
+  }
+}

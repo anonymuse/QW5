@@ -16,12 +16,13 @@ go/no-go decisions for later work, not inference or a cluster capability claim.
 
 All criteria must hold before physical or model-artifact execution begins:
 
-1. This planning pull request is accepted and merged, including ADRs 0004 through
-   0006 and all v1 contracts.
+1. This M0 contract-completion and M1 planning pull request is accepted and merged,
+   including ADRs 0004 through 0006, exact-byte vectors, v1 contracts, and the
+   repository semantic validator.
 2. The active task is created from then-current `main` with disjoint owned paths,
    frozen inputs, acceptance tests, and a task-owned provenance record.
-3. Schemas pass draft 2020-12 meta-validation; valid and negative fixtures behave as
-   documented.
+3. CI passes draft 2020-12 meta-validation, positive fixtures, semantic invariants,
+   hostile mutations, and exact canonical/wire vectors.
 4. The project owner separately approves any remote-node access, model download,
    external scratch storage, or costly benchmark required by that task.
 5. Stable public aliases A, B, and C are mapped privately to the intended machines;
@@ -29,6 +30,12 @@ All criteria must hold before physical or model-artifact execution begins:
 6. The M1 task records the exact QW5 commit and has no unrelated dirty changes.
 7. Any selected model revision is a full immutable commit. A change from the source
    revisions reviewed by ADR-0001 receives explicit Sol review and owner approval.
+8. Before physical cluster work, the owner approves the memory-baseline plan and the
+   TB5 plan's seed/order, socket request, synchronization and thermal thresholds,
+   local controls, expected data volume, exclusive window, and access method.
+9. Before placement results are consumed, the owner approves the safety-reserve and
+   headroom policy, concrete quantization candidates, model-specific formulas/gates,
+   and any Qwen3.5 text-subset dependency rule.
 
 Failure of an entry criterion blocks only the dependent task. It is not permission to
 substitute a declared or estimated value.
@@ -37,22 +44,24 @@ substitute a declared or estimated value.
 
 1. **Inventory tooling and node manifests:** one v1 public-safe inventory for A, B,
    and C plus source/error records for every required fact.
-2. **Topology proof:** a public-safe mapping of the three direct pair links and the
+2. **Memory baselines:** one preregistered repeated clean-node baseline for A, B, and
+   C, preserving all samples, invalid observations, and reserve derivation.
+3. **Topology proof:** a public-safe mapping of the three direct pair links and the
    route-verification artifact used by the benchmark, without network identifiers.
-3. **Thunderbolt application-path evidence:** all six directed solo paths and every
-   required simultaneous scenario, with raw per-sample artifacts and a reviewed
-   summary.
-4. **Model artifact manifests:** complete immutable file identities for both selected
-   model revisions, including tokenizer, configuration, templates, licenses, weight
-   indexes, and weight files consumed by analysis.
-5. **Tensor inventories:** deterministic tensor-level metadata and semantic
-   classification, with unresolved classifications explicit.
-6. **Quantization candidates:** concrete storage layouts and reproducible size
-   calculations; transformed artifacts and quality results are separate evidence and
-   are not required to exist merely to evaluate a theoretical candidate.
-7. **Placement analyses:** per-node budgets and assignments for both models across the
+4. **Thunderbolt application-path evidence:** owner-approved run plan, exact wire
+   vectors, three-node local controls, all six directed solo paths and every required
+   simultaneous scenario, with raw attempts and a 246-cell summary.
+5. **Model artifact manifests:** complete immutable file identities for both selected
+   model revisions, including canonical revision listings, frozen expected paths,
+   tokenizer, configuration, templates, licenses, weight indexes, and weight files
+   consumed by analysis.
+6. **Tensor inventories:** deterministic tensor-level metadata and revision-specific
+   classification rules, with unresolved classifications explicit.
+7. **Pre-analysis decisions:** accepted quantization layouts, formula set, safety
+   reserve, placement candidates, model gates, and any text-subset dependency proof.
+8. **Placement analyses:** per-node budgets and assignments for both models across the
    declared workload matrix, preserving assumptions and sensitivity ranges.
-8. **Gate report:** one decision per model and placement scenario, limitations,
+9. **Gate report:** one decision per model and placement scenario, limitations,
    negative results, unresolved questions, and a recommendation for the next task.
 
 ## Evidence requirements
@@ -76,34 +85,41 @@ The evidence classes remain separate:
 
 ### G0 — Contract readiness
 
-All schemas, fixtures, task boundaries, and owner permissions are accepted. Failure
-blocks execution.
+All schemas, semantic rules, exact vectors, task boundaries, and applicable owner
+permissions are accepted. Failure blocks execution.
 
 ### G1 — Inventory completeness
 
 Each required fact is `available`, `unavailable`, or `error` with a source. Node and
-link identity are unambiguous using public aliases. Missing facts needed by a later
-calculation make that calculation `UNDETERMINED`.
+link identity are unambiguous using public aliases. Each node also has 30 accepted
+clean-node memory samples with validated stabilization/cadence, separately recorded
+Metal working-set guidance, and a reconciled fifth-percentile baseline. Missing facts
+or an incomplete baseline make dependent calculations `UNDETERMINED`.
 
 ### G2 — Link evidence validity
 
-Every solo and simultaneous cell required by the v1 protocol has the planned valid
-sample count or a preserved failure report. Route proof, byte counts, sequence,
-checksums, timing, copy telemetry, errors, and thermal conditions are present. A failed
-cell is not silently dropped.
+Every one of the 246 cells has the planned valid sample count or a preserved failed,
+aborted, or undetermined report. Route proof, local controls, byte/sequence/checksum
+reconciliation, requested/effective sockets, endpoint timing, copy evidence, errors,
+and thermal conditions are present. Seed-derived schedule indexes reconcile for every
+cell. Simultaneous evidence includes no more than 1 ms synchronization uncertainty
+and a skew upper bound no more than 10 ms. A failed cell is not silently dropped.
 
 ### G3 — Artifact and tensor completeness
 
-Both models have immutable revisions, complete consumed-file SHA-256 identities, and
-deterministic tensor inventories. The tensor byte totals reconcile exactly to indexed
-storage ranges. Duplicate names, overlaps, holes where the source format forbids them,
-unknown dtypes, or missing files fail the gate.
+Both models have immutable revisions, two matching hash passes for every consumed
+file, canonical revision-listing digests, exact expected-path/file-table equality,
+derived completeness, revision-specific classification rules, and deterministic tensor
+inventories. File, layer, expert, dtype, class, and storage totals reconcile.
+Duplicate names, reversed/out-of-range/overlapping/holed storage, unknown dtypes, or
+missing files fail the gate.
 
 ### G4 — Representational-size gate
 
-Each candidate quantization is a concrete layout whose weight, metadata, padding,
-alignment, and higher-precision exception bytes reconcile. A parameter-count floor
-may prioritize work but cannot pass this gate.
+Each candidate quantization is a Sol-approved concrete layout whose weight, metadata,
+padding, alignment, and higher-precision exception bytes reconcile. Formula-set,
+reserve, model-gate, and text-subset inputs are immutable and accepted before analyzer
+implementation. A parameter-count floor cannot pass this gate.
 
 ### G5 — Per-node placement gate
 
@@ -140,7 +156,7 @@ vision tensor is not needed by the text path.
 
 M1 is complete when:
 
-- deliverables 1 through 8 exist with immutable identities;
+- deliverables 1 through 9 exist with immutable identities;
 - gates G0 through G6 have explicit outcomes for both models;
 - all required checks and public-safety scans pass;
 - negative and invalid results are retained;

@@ -6,16 +6,24 @@ model feasibility.
 
 ## Contract set
 
+- [`canonical-json-v1.md`](canonical-json-v1.md) freezes exact JSON bytes for every
+  artifact identity and supplies independent hash vectors.
 - [`hardware-inventory-v1.md`](hardware-inventory-v1.md) defines public-safe node and
   link facts and the unavailable/error model.
 - [`thunderbolt5-measurement-v1.md`](thunderbolt5-measurement-v1.md) freezes the six
   directed paths, simultaneous scenarios, payloads, timing, integrity, copy, error,
   and thermal rules.
+- [`thunderbolt5-wire-v1.md`](thunderbolt5-wire-v1.md) freezes exact handshake,
+  payload-generation, frame, digest-trailer, and acknowledgement bytes.
 - [`model-artifact-and-tensor-inventory-v1.md`](model-artifact-and-tensor-inventory-v1.md)
   defines immutable upstream identity, file hashes, tensor metadata, and quantization
   metadata.
 - [`memory-placement-and-quantization-v1.md`](memory-placement-and-quantization-v1.md)
   defines the two-model feasibility analysis and decision vocabulary.
+
+The contract set includes nine v1 schemas: hardware inventory, clean-node memory
+baseline, TB5 run plan, route proof, raw measurement, link summary, model manifest,
+tensor inventory, and placement analysis.
 
 The corresponding JSON Schemas are under [`../../schemas/v1`](../../schemas/v1), with
 public-safe synthetic examples and negative fixtures under
@@ -24,16 +32,18 @@ public-safe synthetic examples and negative fixtures under
 ## Versioning
 
 Each instance has a `schema` value in the form `qw5.<contract>/v1`. A breaking field,
-unit, identity, evidence, or semantic change requires `v2`. Additive fields may be
-proposed only when old readers remain correct; schemas reject unknown properties by
-default so an additive change still receives review and coordinated reader updates.
+unit, identity, evidence, canonical-byte, or semantic change requires `v2`. Additive
+fields may be proposed only when old readers remain correct; schemas reject unknown
+properties by default so an additive change still receives review and coordinated
+reader updates.
 
 The contract version is independent of the producing tool version. Both are recorded.
 An artifact is never silently rewritten under the same digest or schema identity.
 
 ## Common identity and evidence rules
 
-- Digests are lowercase, 64-character SHA-256 values over exact bytes.
+- Digests are lowercase, 64-character SHA-256 values over the exact
+  `qw5-json-c14n-v1` bytes for JSON artifacts and exact raw bytes for non-JSON files.
 - QW5 commits and immutable Hugging Face revisions are full 40-character hexadecimal
   object IDs.
 - Timestamps use UTC RFC 3339 with a `Z` suffix.
@@ -59,5 +69,8 @@ referenced by a reviewed public-safe manifest.
 ## Validation rule
 
 Every schema must validate against the draft 2020-12 meta-schema. Every example must
-validate against its declared schema. Each negative fixture has one documented
-expected failure and must be rejected. Syntax-only JSON parsing is insufficient.
+pass its declared schema and semantic validator. Each negative mutation names the
+required schema or semantic error and must be rejected. Exact canonical and TB5 wire
+vectors must reproduce both bytes and SHA-256. CI installs the pinned validation-only
+dependencies from `requirements/contract-validation.txt` and runs
+`tools/validate_contracts.py`; syntax-only parsing is insufficient.

@@ -1,0 +1,43 @@
+{
+  "schema": "qw5.tb5-wire-vectors/v1",
+  "vectors": [
+    {
+      "vector_id": "acknowledged-64-byte-payload",
+      "inputs": {
+        "plan_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+        "scenario_id": "solo-a-b",
+        "flow_id": "a-b",
+        "source": "A",
+        "destination": "B",
+        "seed": 42,
+        "payload_bytes": 64,
+        "sequence": 7,
+        "ack_requested": true
+      },
+      "handshake_hex": "5157354800010060222222222222222222222222222222222222222222222222222222222222222280ee9c04ec6b9cbc3fe89884b72fe53cd44362d67d921091c7b9674d752e9e2301020000000000000000002a000000000000004000000000",
+      "handshake_sha256": "ffd520b970910e3fe41e07ce53696f299df7687400280d5211c65820405997d6",
+      "payload_hex": "4e661475dfdd7d10dcd5bbd7ba76231ab2513e546c27437a156ae0fc70b741b92aa3806c9bd49558025ac53dbb04baededc63649163ed402f65029fe264c0efd",
+      "payload_sha256": "c914deebfb98dfcbd0856af1c95596bd2a1519a3d7503435531ce4d2a6f0c53d",
+      "data_header_hex": "5157354400010040000100000000000000000007000000000000004022222222222222222222222222222222d44362d67d921091c7b9674d752e9e2300000000",
+      "data_header_sha256": "c1a60986f82fe9234e8aa8a4574708d6c34d0280a0e580f4591e1294a9899043",
+      "digest_trailer_hex": "c914deebfb98dfcbd0856af1c95596bd2a1519a3d7503435531ce4d2a6f0c53d",
+      "digest_trailer_sha256": "d0cd33e21a2818f2f8cf13e58cd7e1cc586ecb3151b9356e3c38c3a846a231cd",
+      "ack_hex": "51573541000100400000000000000000000000070000000000000040c914deebfb98dfcbd0856af1c95596bd2a1519a3d7503435531ce4d2a6f0c53d00000000",
+      "ack_sha256": "f6c8cd8c27f22888cc0b25439efdc0c1cc3e8f32bd0d89c8a190c6af81ec0313"
+    }
+  ],
+  "invalid_vectors": [
+    {"vector_id":"handshake-bad-magic","base_vector_id":"acknowledged-64-byte-payload","component":"handshake","mutation":{"kind":"replace_bytes","offset":0,"replacement_hex":"00"},"mutated_hex":"0057354800010060222222222222222222222222222222222222222222222222222222222222222280ee9c04ec6b9cbc3fe89884b72fe53cd44362d67d921091c7b9674d752e9e2301020000000000000000002a000000000000004000000000","expected_error":"WIRE_MAGIC"},
+    {"vector_id":"handshake-bad-version","base_vector_id":"acknowledged-64-byte-payload","component":"handshake","mutation":{"kind":"replace_bytes","offset":5,"replacement_hex":"02"},"mutated_hex":"5157354800020060222222222222222222222222222222222222222222222222222222222222222280ee9c04ec6b9cbc3fe89884b72fe53cd44362d67d921091c7b9674d752e9e2301020000000000000000002a000000000000004000000000","expected_error":"WIRE_VERSION"},
+    {"vector_id":"handshake-unknown-node","base_vector_id":"acknowledged-64-byte-payload","component":"handshake","mutation":{"kind":"replace_bytes","offset":72,"replacement_hex":"04"},"mutated_hex":"5157354800010060222222222222222222222222222222222222222222222222222222222222222280ee9c04ec6b9cbc3fe89884b72fe53cd44362d67d921091c7b9674d752e9e2304020000000000000000002a000000000000004000000000","expected_error":"WIRE_NODE_CODE"},
+    {"vector_id":"handshake-self-flow","base_vector_id":"acknowledged-64-byte-payload","component":"handshake","mutation":{"kind":"replace_bytes","offset":73,"replacement_hex":"01"},"mutated_hex":"5157354800010060222222222222222222222222222222222222222222222222222222222222222280ee9c04ec6b9cbc3fe89884b72fe53cd44362d67d921091c7b9674d752e9e2301010000000000000000002a000000000000004000000000","expected_error":"WIRE_SELF_FLOW"},
+    {"vector_id":"handshake-nonzero-reserved","base_vector_id":"acknowledged-64-byte-payload","component":"handshake","mutation":{"kind":"replace_bytes","offset":95,"replacement_hex":"01"},"mutated_hex":"5157354800010060222222222222222222222222222222222222222222222222222222222222222280ee9c04ec6b9cbc3fe89884b72fe53cd44362d67d921091c7b9674d752e9e2301020000000000000000002a000000000000004000000001","expected_error":"WIRE_RESERVED"},
+    {"vector_id":"data-header-unknown-flags","base_vector_id":"acknowledged-64-byte-payload","component":"data_header","mutation":{"kind":"replace_bytes","offset":9,"replacement_hex":"03"},"mutated_hex":"5157354400010040000300000000000000000007000000000000004022222222222222222222222222222222d44362d67d921091c7b9674d752e9e2300000000","expected_error":"WIRE_FLAGS"},
+    {"vector_id":"data-header-truncated","base_vector_id":"acknowledged-64-byte-payload","component":"data_header","mutation":{"kind":"truncate","length":63},"mutated_hex":"5157354400010040000100000000000000000007000000000000004022222222222222222222222222222222d44362d67d921091c7b9674d752e9e23000000","expected_error":"WIRE_TRUNCATED_HEADER"},
+    {"vector_id":"payload-corrupt","base_vector_id":"acknowledged-64-byte-payload","component":"payload","mutation":{"kind":"replace_bytes","offset":0,"replacement_hex":"00"},"mutated_hex":"00661475dfdd7d10dcd5bbd7ba76231ab2513e546c27437a156ae0fc70b741b92aa3806c9bd49558025ac53dbb04baededc63649163ed402f65029fe264c0efd","expected_error":"WIRE_PAYLOAD_MISMATCH"},
+    {"vector_id":"digest-corrupt","base_vector_id":"acknowledged-64-byte-payload","component":"digest_trailer","mutation":{"kind":"replace_bytes","offset":0,"replacement_hex":"00"},"mutated_hex":"0014deebfb98dfcbd0856af1c95596bd2a1519a3d7503435531ce4d2a6f0c53d","expected_error":"WIRE_DIGEST_MISMATCH"},
+    {"vector_id":"ack-sequence-mismatch","base_vector_id":"acknowledged-64-byte-payload","component":"ack","mutation":{"kind":"replace_bytes","offset":19,"replacement_hex":"08"},"mutated_hex":"51573541000100400000000000000000000000080000000000000040c914deebfb98dfcbd0856af1c95596bd2a1519a3d7503435531ce4d2a6f0c53d00000000","expected_error":"WIRE_ACK_ECHO"},
+    {"vector_id":"ack-extra-byte","base_vector_id":"acknowledged-64-byte-payload","component":"ack","mutation":{"kind":"append","suffix_hex":"00"},"mutated_hex":"51573541000100400000000000000000000000070000000000000040c914deebfb98dfcbd0856af1c95596bd2a1519a3d7503435531ce4d2a6f0c53d0000000000","expected_error":"WIRE_EXTRA_BYTES"},
+    {"vector_id":"data-header-plan-mismatch","base_vector_id":"acknowledged-64-byte-payload","component":"data_header","mutation":{"kind":"replace_bytes","offset":28,"replacement_hex":"23"},"mutated_hex":"5157354400010040000100000000000000000007000000000000004023222222222222222222222222222222d44362d67d921091c7b9674d752e9e2300000000","expected_error":"WIRE_PLAN_IDENTITY"}
+  ]
+}
