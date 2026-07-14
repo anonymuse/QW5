@@ -1,0 +1,88 @@
+{
+  "schema": "qw5.placement-analysis/v1",
+  "artifact_role": "schema_fixture",
+  "evidence_class": "ESTIMATED",
+  "created_at": "2000-01-01T00:00:00Z",
+  "producer": {
+    "name": "qw5-schema-fixture",
+    "version": "1",
+    "executable_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "qw5_commit": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "dirty": false,
+    "parameters": ["--fixture"]
+  },
+  "model": {
+    "repository_id": "example/schema-fixture",
+    "immutable_revision": "ffffffffffffffffffffffffffffffffffffffff",
+    "component_scope": "schema_fixture"
+  },
+  "inputs": {
+    "model_manifest": { "sha256": "0101010101010101010101010101010101010101010101010101010101010101", "schema": "qw5.model-artifact-manifest/v1", "evidence_class": "SIMULATED" },
+    "tensor_inventory": { "sha256": "0202020202020202020202020202020202020202020202020202020202020202", "schema": "qw5.tensor-inventory/v1", "evidence_class": "SIMULATED" },
+    "hardware_inventory": {
+      "A": { "sha256": "0303030303030303030303030303030303030303030303030303030303030303", "schema": "qw5.hardware-inventory/v1", "evidence_class": "SIMULATED" },
+      "B": { "sha256": "0404040404040404040404040404040404040404040404040404040404040404", "schema": "qw5.hardware-inventory/v1", "evidence_class": "SIMULATED" },
+      "C": { "sha256": "0505050505050505050505050505050505050505050505050505050505050505", "schema": "qw5.hardware-inventory/v1", "evidence_class": "SIMULATED" }
+    },
+    "link_profile": null,
+    "formula_set": { "sha256": "0606060606060606060606060606060606060606060606060606060606060606", "schema": "qw5.formula-set/fixture", "evidence_class": "TARGET" }
+  },
+  "workload": {
+    "phase": "decode",
+    "batch_size": 1,
+    "context_tokens": 4096,
+    "prompt_tokens": 4095,
+    "generated_token_allowance": 1,
+    "sequence_count": 1,
+    "condition_class": "TARGET"
+  },
+  "quantization_candidate": {
+    "candidate_id": "fixture-layout",
+    "layout_spec_sha256": "0707070707070707070707070707070707070707070707070707070707070707",
+    "weight_bits": 4,
+    "mixed_precision": false,
+    "quality_evidence_sha256": null,
+    "assumptions": ["Synthetic values; not a model-feasibility result."]
+  },
+  "size_reconciliation": {
+    "source_payload_bytes": 16,
+    "packed_weight_bytes": 4,
+    "quantization_metadata_bytes": 2,
+    "padding_alignment_bytes": 1,
+    "higher_precision_exception_bytes": 0,
+    "container_overhead_bytes": 1,
+    "total_bytes": 8
+  },
+  "node_budgets": [
+    {
+      "node": "A",
+      "measured_available_baseline_bytes": 32,
+      "os_reserve_bytes": 8,
+      "safety_reserve_bytes": 8,
+      "placement_budget_bytes": 16,
+      "allocated_bytes": 8,
+      "headroom_bytes": 8
+    }
+  ],
+  "allocations": [
+    {
+      "allocation_id": "fixture-weights",
+      "node": "A",
+      "class": "weights",
+      "bytes": 8,
+      "evidence_class": "ESTIMATED",
+      "tensor_set_id": "fixture-tensors",
+      "range": null
+    }
+  ],
+  "network_edges": [],
+  "decision": {
+    "decision_scope": "m1_memory_placement",
+    "outcome": "UNDETERMINED",
+    "passed_gates": ["artifact_complete", "layout_complete", "memory_nonnegative"],
+    "failed_gates": [],
+    "unresolved_gates": ["quality_available", "scratch_bounded", "state_bounded", "transport_profile_available"],
+    "next_permitted_task": null,
+    "prohibited_claims": ["This synthetic fixture does not show that any model runs."]
+  }
+}

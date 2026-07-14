@@ -1,0 +1,57 @@
+{
+  "schema": "qw5.tensor-inventory/v1",
+  "artifact_role": "schema_fixture",
+  "evidence_class": "SIMULATED",
+  "created_at": "2000-01-01T00:00:00Z",
+  "model_manifest_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "model": {
+    "repository_id": "example/schema-fixture",
+    "immutable_revision": "cccccccccccccccccccccccccccccccccccccccc"
+  },
+  "producer": {
+    "name": "qw5-schema-fixture",
+    "version": "1",
+    "executable_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "qw5_commit": "dddddddddddddddddddddddddddddddddddddddd",
+    "dirty": false,
+    "parameters": ["--fixture"]
+  },
+  "format": {
+    "name": "fixture",
+    "version": "1",
+    "byte_order": "little",
+    "ordering": "tensor_name_lexicographic"
+  },
+  "tensors": [
+    {
+      "name": "fixture.weight",
+      "source_file": "model-00001-of-00001.safetensors",
+      "source_dtype": "F16",
+      "normalized_dtype": "float16",
+      "shape": [2, 2],
+      "element_count": 4,
+      "stored_bytes": 8,
+      "data_offsets": [0, 8],
+      "component": "language",
+      "semantic_class": "embedding",
+      "classification": { "status": "classified", "rule_id": "fixture-rule" },
+      "layer_index": null,
+      "expert_index": null,
+      "shard_index": 0,
+      "storage_id": "fixture-storage",
+      "alias_of": null,
+      "quantization": null
+    }
+  ],
+  "totals": {
+    "tensor_count": 1,
+    "element_count": 4,
+    "tensor_payload_bytes": 8,
+    "container_overhead_bytes": 8,
+    "by_component": { "language": 8 },
+    "by_dtype": { "float16": 8 },
+    "by_semantic_class": { "embedding": 8 }
+  },
+  "unclassified_tensors": [],
+  "errors": []
+}

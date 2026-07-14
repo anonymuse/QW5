@@ -1,0 +1,54 @@
+{
+  "schema": "qw5.model-artifact-manifest/v1",
+  "artifact_role": "schema_fixture",
+  "evidence_class": "SIMULATED",
+  "created_at": "2000-01-01T00:00:00Z",
+  "producer": {
+    "name": "qw5-schema-fixture",
+    "version": "1",
+    "executable_sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+    "qw5_commit": "8888888888888888888888888888888888888888",
+    "dirty": false,
+    "parameters": ["--fixture"]
+  },
+  "repository": {
+    "provider": "fixture",
+    "repository_id": "example/schema-fixture",
+    "immutable_revision": "9999999999999999999999999999999999999999",
+    "requested_reference": null
+  },
+  "selection": {
+    "model_role": "schema_fixture",
+    "components": ["configuration", "language", "license", "tokenizer"]
+  },
+  "files": [
+    {
+      "path": "config.json",
+      "role": "configuration",
+      "status": "verified",
+      "size_bytes": 2,
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "media_type": "application/json",
+      "upstream_object_id": null
+    },
+    {
+      "path": "model-00001-of-00001.safetensors",
+      "role": "weight_shard",
+      "status": "verified",
+      "size_bytes": 16,
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "media_type": "application/octet-stream",
+      "upstream_object_id": "fixture-object"
+    }
+  ],
+  "included_patterns": ["*.json", "*.safetensors"],
+  "excluded_patterns": [],
+  "unexpected_files": [],
+  "completeness": {
+    "status": "complete",
+    "verified_file_count": 2,
+    "verified_total_bytes": 18,
+    "second_hash_pass": true,
+    "errors": []
+  }
+}

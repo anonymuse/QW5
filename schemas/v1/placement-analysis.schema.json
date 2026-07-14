@@ -1,0 +1,216 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/anonymuse/QW5/schemas/v1/placement-analysis.schema.json",
+  "title": "QW5 memory placement and quantization analysis v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "artifact_role",
+    "evidence_class",
+    "created_at",
+    "producer",
+    "model",
+    "inputs",
+    "workload",
+    "quantization_candidate",
+    "size_reconciliation",
+    "node_budgets",
+    "allocations",
+    "network_edges",
+    "decision"
+  ],
+  "properties": {
+    "schema": { "const": "qw5.placement-analysis/v1" },
+    "artifact_role": { "enum": ["placement_analysis", "schema_fixture"] },
+    "evidence_class": { "enum": ["ESTIMATED", "SIMULATED"] },
+    "created_at": { "$ref": "#/$defs/timestamp" },
+    "producer": { "$ref": "#/$defs/producer" },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository_id", "immutable_revision", "component_scope"],
+      "properties": {
+        "repository_id": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" },
+        "immutable_revision": { "$ref": "#/$defs/git_commit" },
+        "component_scope": { "enum": ["complete_artifact", "text_execution_subset", "schema_fixture"] }
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model_manifest", "tensor_inventory", "hardware_inventory", "link_profile", "formula_set"],
+      "properties": {
+        "model_manifest": { "$ref": "#/$defs/input" },
+        "tensor_inventory": { "$ref": "#/$defs/input" },
+        "hardware_inventory": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["A", "B", "C"],
+          "properties": {
+            "A": { "$ref": "#/$defs/input" },
+            "B": { "$ref": "#/$defs/input" },
+            "C": { "$ref": "#/$defs/input" }
+          }
+        },
+        "link_profile": { "anyOf": [{ "$ref": "#/$defs/input" }, { "type": "null" }] },
+        "formula_set": { "$ref": "#/$defs/input" }
+      }
+    },
+    "workload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phase", "batch_size", "context_tokens", "prompt_tokens", "generated_token_allowance", "sequence_count", "condition_class"],
+      "properties": {
+        "phase": { "enum": ["prefill", "decode"] },
+        "batch_size": { "const": 1 },
+        "context_tokens": { "enum": [4096, 32768, 262144] },
+        "prompt_tokens": { "type": "integer", "minimum": 0 },
+        "generated_token_allowance": { "type": "integer", "minimum": 0 },
+        "sequence_count": { "type": "integer", "minimum": 1 },
+        "condition_class": { "const": "TARGET" }
+      }
+    },
+    "quantization_candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["candidate_id", "layout_spec_sha256", "weight_bits", "mixed_precision", "quality_evidence_sha256", "assumptions"],
+      "properties": {
+        "candidate_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9.-]*$" },
+        "layout_spec_sha256": { "$ref": "#/$defs/sha256" },
+        "weight_bits": { "type": ["integer", "null"], "minimum": 1, "maximum": 16 },
+        "mixed_precision": { "type": "boolean" },
+        "quality_evidence_sha256": { "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] },
+        "assumptions": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "size_reconciliation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_payload_bytes", "packed_weight_bytes", "quantization_metadata_bytes", "padding_alignment_bytes", "higher_precision_exception_bytes", "container_overhead_bytes", "total_bytes"],
+      "properties": {
+        "source_payload_bytes": { "$ref": "#/$defs/bytes" },
+        "packed_weight_bytes": { "$ref": "#/$defs/bytes" },
+        "quantization_metadata_bytes": { "$ref": "#/$defs/bytes" },
+        "padding_alignment_bytes": { "$ref": "#/$defs/bytes" },
+        "higher_precision_exception_bytes": { "$ref": "#/$defs/bytes" },
+        "container_overhead_bytes": { "$ref": "#/$defs/bytes" },
+        "total_bytes": { "$ref": "#/$defs/bytes" }
+      }
+    },
+    "node_budgets": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/node_budget" }
+    },
+    "allocations": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/allocation" }
+    },
+    "network_edges": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/network_edge" }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decision_scope", "outcome", "passed_gates", "failed_gates", "unresolved_gates", "next_permitted_task", "prohibited_claims"],
+      "properties": {
+        "decision_scope": { "const": "m1_memory_placement" },
+        "outcome": { "enum": ["GO", "CONDITIONAL_GO", "NO_GO", "UNDETERMINED"] },
+        "passed_gates": { "$ref": "#/$defs/gate_ids" },
+        "failed_gates": { "$ref": "#/$defs/gate_ids" },
+        "unresolved_gates": { "$ref": "#/$defs/gate_ids" },
+        "next_permitted_task": { "type": ["string", "null"] },
+        "prohibited_claims": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+      }
+    }
+  },
+  "$defs": {
+    "timestamp": { "type": "string", "format": "date-time", "pattern": "Z$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "git_commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "bytes": { "type": "integer", "minimum": 0 },
+    "node": { "enum": ["A", "B", "C"] },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "executable_sha256", "qw5_commit", "dirty", "parameters"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "executable_sha256": { "$ref": "#/$defs/sha256" },
+        "qw5_commit": { "$ref": "#/$defs/git_commit" },
+        "dirty": { "type": "boolean" },
+        "parameters": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sha256", "schema", "evidence_class"],
+      "properties": {
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "schema": { "type": "string", "minLength": 1 },
+        "evidence_class": { "enum": ["MEASURED", "SIMULATED", "ESTIMATED", "TARGET"] }
+      }
+    },
+    "node_budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node", "measured_available_baseline_bytes", "os_reserve_bytes", "safety_reserve_bytes", "placement_budget_bytes", "allocated_bytes", "headroom_bytes"],
+      "properties": {
+        "node": { "$ref": "#/$defs/node" },
+        "measured_available_baseline_bytes": { "$ref": "#/$defs/bytes" },
+        "os_reserve_bytes": { "$ref": "#/$defs/bytes" },
+        "safety_reserve_bytes": { "$ref": "#/$defs/bytes" },
+        "placement_budget_bytes": { "$ref": "#/$defs/bytes" },
+        "allocated_bytes": { "$ref": "#/$defs/bytes" },
+        "headroom_bytes": { "type": "integer" }
+      }
+    },
+    "allocation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allocation_id", "node", "class", "bytes", "evidence_class", "tensor_set_id", "range"],
+      "properties": {
+        "allocation_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9.-]*$" },
+        "node": { "$ref": "#/$defs/node" },
+        "class": { "enum": ["allocator", "artifact_staging", "control", "fragmentation", "kv_state", "recurrent_state", "router_state", "scratch", "transport", "weights"] },
+        "bytes": { "$ref": "#/$defs/bytes" },
+        "evidence_class": { "enum": ["MEASURED", "ESTIMATED", "TARGET"] },
+        "tensor_set_id": { "type": ["string", "null"] },
+        "range": {
+          "type": ["object", "null"],
+          "properties": {
+            "low_bytes": { "$ref": "#/$defs/bytes" },
+            "high_bytes": { "$ref": "#/$defs/bytes" }
+          },
+          "required": ["low_bytes", "high_bytes"],
+          "additionalProperties": false
+        }
+      }
+    },
+    "network_edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "destination", "message_class", "payload_bytes", "messages_per_token", "link_profile_sha256"],
+      "properties": {
+        "source": { "$ref": "#/$defs/node" },
+        "destination": { "$ref": "#/$defs/node" },
+        "message_class": { "enum": ["artifact_identity", "control", "expert_dispatch", "expert_result", "layer_state", "telemetry"] },
+        "payload_bytes": { "$ref": "#/$defs/bytes" },
+        "messages_per_token": { "type": "number", "minimum": 0 },
+        "link_profile_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "gate_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "enum": ["artifact_complete", "layout_complete", "memory_nonnegative", "quality_available", "scratch_bounded", "state_bounded", "transport_profile_available"] }
+    }
+  }
+}

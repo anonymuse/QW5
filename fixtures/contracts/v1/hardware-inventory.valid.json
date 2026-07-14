@@ -1,0 +1,100 @@
+{
+  "schema": "qw5.hardware-inventory/v1",
+  "artifact_role": "schema_fixture",
+  "evidence_class": "SIMULATED",
+  "node_alias": "A",
+  "collection": {
+    "started_at": "2000-01-01T00:00:00Z",
+    "ended_at": "2000-01-01T00:00:01Z"
+  },
+  "producer": {
+    "name": "qw5-schema-fixture",
+    "version": "1",
+    "executable_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+    "qw5_commit": "1111111111111111111111111111111111111111",
+    "dirty": false
+  },
+  "sources": [
+    {
+      "source_id": "fixture.api",
+      "kind": "api",
+      "name": "Synthetic fixture source",
+      "provider": "QW5",
+      "version": "1",
+      "description": "Non-hardware values used only to validate the schema."
+    }
+  ],
+  "facts": {
+    "clock.monotonic_name": { "status": "available", "value": "fixture-clock", "unit": "none", "source_ref": "fixture.api", "observed_at": "2000-01-01T00:00:00Z" },
+    "clock.monotonic_resolution_ns": { "status": "available", "value": 1, "unit": "ns", "source_ref": "fixture.api", "observed_at": "2000-01-01T00:00:00Z" },
+    "clock.sync_method": { "status": "available", "value": "fixture", "unit": "none", "source_ref": "fixture.api", "observed_at": "2000-01-01T00:00:00Z" },
+    "clock.sync_uncertainty_ns": { "status": "unavailable", "source_ref": "fixture.api", "observed_at": "2000-01-01T00:00:00Z" },
+    "cpu.efficiency_core_count": { "status": "available", "value": 1, "unit": "count", "source_ref": "fixture.api", "observed_at": "2000-01-01T00:00:00Z" },
+    "cpu.logical_core_count": { "status": "available", "value": 2, "unit": "count", "source_ref": "fixture.api", "observed_at": "2000-01-01T00:00:00Z" },
+    "cpu.performance_core_count": { "status": "available", "value": 1, "unit": "count", "source_ref": "fixture.api", "observed_at": "2000-01-01T00:00:00Z" },
+    "cpu.physical_core_count": { "status": "available", "value": 2, "unit": "count", "source_ref": "fixture.api", "observed_at": "2000-01-01T00:00:00Z" },
+    "gpu.core_count": { "status": "unavailable", "source_ref": "fixture.api", "observed_at": "2000-01-01T00:00:00Z" },
+    "gpu.device_count": { "status": "available", "value": 1, "unit": "count", "source_ref": "fixture.api", "observed_at": "2000-01-01T00:00:00Z" },
+    "gpu.device_name": { "status": "available", "value": "Fixture GPU", "unit": "none", "source_ref": "fixture.api", "observed_at": "2000-01-01T00:00:00Z" },
+    "gpu.has_unified_memory": { "status": "available", "value": true, "unit": "none", "source_ref": "fixture.api", "observed_at": "2000-01-01T00:00:00Z" },
+    "gpu.recommended_working_set_bytes": { "status": "available", "value": 1024, "unit": "bytes", "source_ref": "fixture.api", "observed_at": "2000-01-01T00:00:00Z" },
+    "hardware.model_identifier": { "status": "available", "value": "Fixture1,1", "unit": "none", "source_ref": "fixture.api", "observed_at": "2000-01-01T00:00:00Z" },
+    "memory.available_bytes": { "status": "available", "value": 1024, "unit": "bytes", "source_ref": "fixture.api", "observed_at": "2000-01-01T00:00:00Z" },
+    "memory.page_bytes": { "status": "available", "value": 4096, "unit": "bytes", "source_ref": "fixture.api", "observed_at": "2000-01-01T00:00:00Z" },
+    "memory.physical_bytes": { "status": "available", "value": 2048, "unit": "bytes", "source_ref": "fixture.api", "observed_at": "2000-01-01T00:00:00Z" },
+    "memory.pressure_level": { "status": "available", "value": "fixture", "unit": "none", "source_ref": "fixture.api", "observed_at": "2000-01-01T00:00:00Z" },
+    "os.build": { "status": "available", "value": "fixture-build", "unit": "none", "source_ref": "fixture.api", "observed_at": "2000-01-01T00:00:00Z" },
+    "os.kernel_release": { "status": "available", "value": "fixture-kernel", "unit": "none", "source_ref": "fixture.api", "observed_at": "2000-01-01T00:00:00Z" },
+    "os.product_version": { "status": "available", "value": "0.0", "unit": "none", "source_ref": "fixture.api", "observed_at": "2000-01-01T00:00:00Z" },
+    "power.low_power_mode": { "status": "available", "value": false, "unit": "none", "source_ref": "fixture.api", "observed_at": "2000-01-01T00:00:00Z" },
+    "power.source": { "status": "unavailable", "source_ref": "fixture.api", "observed_at": "2000-01-01T00:00:00Z" },
+    "soc.name": { "status": "available", "value": "Fixture SoC", "unit": "none", "source_ref": "fixture.api", "observed_at": "2000-01-01T00:00:00Z" },
+    "storage.available_important_bytes": { "status": "available", "value": 1024, "unit": "bytes", "source_ref": "fixture.api", "observed_at": "2000-01-01T00:00:00Z" },
+    "storage.internal": { "status": "available", "value": true, "unit": "none", "source_ref": "fixture.api", "observed_at": "2000-01-01T00:00:00Z" },
+    "storage.total_bytes": { "status": "available", "value": 2048, "unit": "bytes", "source_ref": "fixture.api", "observed_at": "2000-01-01T00:00:00Z" },
+    "thermal.state": { "status": "available", "value": "nominal", "unit": "none", "source_ref": "fixture.api", "observed_at": "2000-01-01T00:00:00Z" },
+    "thunderbolt.controller_count": { "status": "unavailable", "source_ref": "fixture.api", "observed_at": "2000-01-01T00:00:00Z" },
+    "tool.zig_version": { "status": "available", "value": "0.0-fixture", "unit": "none", "source_ref": "fixture.api", "observed_at": "2000-01-01T00:00:00Z" }
+  },
+  "links": [
+    {
+      "peer_alias": "B",
+      "route_alias": "A-B",
+      "status": "available",
+      "active": true,
+      "direct": true,
+      "controller_alias": "tb-controller-0",
+      "port_alias": "tb-port-0",
+      "negotiated_rate": { "status": "unavailable", "source_ref": "fixture.api" },
+      "negotiated_width": { "status": "unavailable", "source_ref": "fixture.api" },
+      "source_ref": "fixture.api",
+      "observed_at": "2000-01-01T00:00:00Z"
+    },
+    {
+      "peer_alias": "C",
+      "route_alias": "A-C",
+      "status": "available",
+      "active": true,
+      "direct": true,
+      "controller_alias": "tb-controller-1",
+      "port_alias": "tb-port-1",
+      "negotiated_rate": { "status": "unavailable", "source_ref": "fixture.api" },
+      "negotiated_width": { "status": "unavailable", "source_ref": "fixture.api" },
+      "source_ref": "fixture.api",
+      "observed_at": "2000-01-01T00:00:00Z"
+    }
+  ],
+  "collection_errors": [],
+  "redactions": [
+    "credentials",
+    "hardware_uuid",
+    "home_path",
+    "hostname",
+    "ip_address",
+    "mac_address",
+    "mount_path",
+    "serial_number",
+    "token",
+    "username"
+  ]
+}

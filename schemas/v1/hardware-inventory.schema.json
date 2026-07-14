@@ -1,0 +1,272 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/anonymuse/QW5/schemas/v1/hardware-inventory.schema.json",
+  "title": "QW5 hardware inventory v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "artifact_role",
+    "evidence_class",
+    "node_alias",
+    "collection",
+    "producer",
+    "sources",
+    "facts",
+    "links",
+    "collection_errors",
+    "redactions"
+  ],
+  "properties": {
+    "schema": { "const": "qw5.hardware-inventory/v1" },
+    "artifact_role": { "enum": ["inventory", "schema_fixture"] },
+    "evidence_class": { "enum": ["MEASURED", "SIMULATED"] },
+    "node_alias": { "enum": ["A", "B", "C"] },
+    "collection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["started_at", "ended_at"],
+      "properties": {
+        "started_at": { "$ref": "#/$defs/timestamp" },
+        "ended_at": { "$ref": "#/$defs/timestamp" }
+      }
+    },
+    "producer": { "$ref": "#/$defs/producer" },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/source" }
+    },
+    "facts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "clock.monotonic_name",
+        "clock.monotonic_resolution_ns",
+        "clock.sync_method",
+        "clock.sync_uncertainty_ns",
+        "cpu.efficiency_core_count",
+        "cpu.logical_core_count",
+        "cpu.performance_core_count",
+        "cpu.physical_core_count",
+        "gpu.core_count",
+        "gpu.device_count",
+        "gpu.device_name",
+        "gpu.has_unified_memory",
+        "gpu.recommended_working_set_bytes",
+        "hardware.model_identifier",
+        "memory.available_bytes",
+        "memory.page_bytes",
+        "memory.physical_bytes",
+        "memory.pressure_level",
+        "os.build",
+        "os.kernel_release",
+        "os.product_version",
+        "power.low_power_mode",
+        "power.source",
+        "soc.name",
+        "storage.available_important_bytes",
+        "storage.internal",
+        "storage.total_bytes",
+        "thermal.state",
+        "thunderbolt.controller_count",
+        "tool.zig_version"
+      ],
+      "properties": {
+        "clock.monotonic_name": { "$ref": "#/$defs/fact" },
+        "clock.monotonic_resolution_ns": { "$ref": "#/$defs/fact" },
+        "clock.sync_method": { "$ref": "#/$defs/fact" },
+        "clock.sync_uncertainty_ns": { "$ref": "#/$defs/fact" },
+        "cpu.efficiency_core_count": { "$ref": "#/$defs/fact" },
+        "cpu.logical_core_count": { "$ref": "#/$defs/fact" },
+        "cpu.performance_core_count": { "$ref": "#/$defs/fact" },
+        "cpu.physical_core_count": { "$ref": "#/$defs/fact" },
+        "gpu.core_count": { "$ref": "#/$defs/fact" },
+        "gpu.device_count": { "$ref": "#/$defs/fact" },
+        "gpu.device_name": { "$ref": "#/$defs/fact" },
+        "gpu.has_unified_memory": { "$ref": "#/$defs/fact" },
+        "gpu.recommended_working_set_bytes": { "$ref": "#/$defs/fact" },
+        "hardware.model_identifier": { "$ref": "#/$defs/fact" },
+        "memory.available_bytes": { "$ref": "#/$defs/fact" },
+        "memory.page_bytes": { "$ref": "#/$defs/fact" },
+        "memory.physical_bytes": { "$ref": "#/$defs/fact" },
+        "memory.pressure_level": { "$ref": "#/$defs/fact" },
+        "os.build": { "$ref": "#/$defs/fact" },
+        "os.kernel_release": { "$ref": "#/$defs/fact" },
+        "os.product_version": { "$ref": "#/$defs/fact" },
+        "power.low_power_mode": { "$ref": "#/$defs/fact" },
+        "power.source": { "$ref": "#/$defs/fact" },
+        "soc.name": { "$ref": "#/$defs/fact" },
+        "storage.available_important_bytes": { "$ref": "#/$defs/fact" },
+        "storage.internal": { "$ref": "#/$defs/fact" },
+        "storage.total_bytes": { "$ref": "#/$defs/fact" },
+        "thermal.state": { "$ref": "#/$defs/fact" },
+        "thunderbolt.controller_count": { "$ref": "#/$defs/fact" },
+        "tool.zig_version": { "$ref": "#/$defs/fact" }
+      }
+    },
+    "links": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/link" }
+    },
+    "collection_errors": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/error" }
+    },
+    "redactions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "credentials",
+          "hardware_uuid",
+          "home_path",
+          "hostname",
+          "ip_address",
+          "mac_address",
+          "mount_path",
+          "serial_number",
+          "token",
+          "username"
+        ]
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "artifact_role": { "const": "inventory" } } },
+      "then": { "properties": { "evidence_class": { "const": "MEASURED" } } },
+      "else": { "properties": { "evidence_class": { "const": "SIMULATED" } } }
+    }
+  ],
+  "$defs": {
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "git_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "executable_sha256", "qw5_commit", "dirty"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "executable_sha256": { "$ref": "#/$defs/sha256" },
+        "qw5_commit": { "$ref": "#/$defs/git_commit" },
+        "dirty": { "type": "boolean" }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_id", "kind", "name", "provider", "version", "description"],
+      "properties": {
+        "source_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9.-]*$" },
+        "kind": { "enum": ["api", "command"] },
+        "name": { "type": "string", "minLength": 1 },
+        "provider": { "type": "string", "minLength": 1 },
+        "version": { "type": ["string", "null"] },
+        "description": { "type": "string", "minLength": 1 }
+      }
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message"],
+      "properties": {
+        "code": { "type": "string", "pattern": "^[A-Z0-9_]+$" },
+        "message": { "type": "string", "minLength": 1 }
+      }
+    },
+    "fact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "source_ref", "observed_at"],
+      "properties": {
+        "status": { "enum": ["available", "unavailable", "error"] },
+        "value": { "type": ["boolean", "integer", "number", "string"] },
+        "unit": { "enum": ["bytes", "count", "none", "ns"] },
+        "source_ref": { "type": "string", "pattern": "^[a-z0-9][a-z0-9.-]*$" },
+        "observed_at": { "$ref": "#/$defs/timestamp" },
+        "error": { "$ref": "#/$defs/error" }
+      },
+      "oneOf": [
+        {
+          "properties": { "status": { "const": "available" } },
+          "required": ["value", "unit"],
+          "not": { "required": ["error"] }
+        },
+        {
+          "properties": { "status": { "const": "unavailable" } },
+          "not": { "anyOf": [{ "required": ["value"] }, { "required": ["unit"] }, { "required": ["error"] }] }
+        },
+        {
+          "properties": { "status": { "const": "error" } },
+          "required": ["error"],
+          "not": { "anyOf": [{ "required": ["value"] }, { "required": ["unit"] }] }
+        }
+      ]
+    },
+    "optional_observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "source_ref"],
+      "properties": {
+        "status": { "enum": ["available", "unavailable", "error"] },
+        "value": { "type": ["boolean", "integer", "number", "string"] },
+        "unit": { "enum": ["bits_per_second", "count", "none"] },
+        "source_ref": { "type": "string", "minLength": 1 },
+        "error": { "$ref": "#/$defs/error" }
+      },
+      "oneOf": [
+        { "properties": { "status": { "const": "available" } }, "required": ["value", "unit"], "not": { "required": ["error"] } },
+        { "properties": { "status": { "const": "unavailable" } }, "not": { "anyOf": [{ "required": ["value"] }, { "required": ["unit"] }, { "required": ["error"] }] } },
+        { "properties": { "status": { "const": "error" } }, "required": ["error"], "not": { "anyOf": [{ "required": ["value"] }, { "required": ["unit"] }] } }
+      ]
+    },
+    "link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "peer_alias",
+        "route_alias",
+        "status",
+        "active",
+        "direct",
+        "controller_alias",
+        "port_alias",
+        "negotiated_rate",
+        "negotiated_width",
+        "source_ref",
+        "observed_at"
+      ],
+      "properties": {
+        "peer_alias": { "enum": ["A", "B", "C"] },
+        "route_alias": { "type": "string", "pattern": "^[A-C]-[A-C]$" },
+        "status": { "enum": ["available", "unavailable", "error"] },
+        "active": { "type": ["boolean", "null"] },
+        "direct": { "type": ["boolean", "null"] },
+        "controller_alias": { "type": ["string", "null"], "pattern": "^tb-controller-[0-9]+$" },
+        "port_alias": { "type": ["string", "null"], "pattern": "^tb-port-[0-9]+$" },
+        "negotiated_rate": { "$ref": "#/$defs/optional_observation" },
+        "negotiated_width": { "$ref": "#/$defs/optional_observation" },
+        "source_ref": { "type": "string", "minLength": 1 },
+        "observed_at": { "$ref": "#/$defs/timestamp" },
+        "error": { "$ref": "#/$defs/error" }
+      }
+    }
+  }
+}

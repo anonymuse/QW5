@@ -1,0 +1,98 @@
+{
+  "schema": "qw5.tb5-measurement/v1",
+  "artifact_role": "schema_fixture",
+  "evidence_class": "SIMULATED",
+  "run_id": "fixture-run",
+  "created_at": "2000-01-01T00:00:02Z",
+  "identity": {
+    "qw5_commit": "2222222222222222222222222222222222222222",
+    "dirty": false,
+    "plan_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+    "harness_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+    "route_proof_sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+    "inventory_sha256": {
+      "A": "5555555555555555555555555555555555555555555555555555555555555555",
+      "B": "6666666666666666666666666666666666666666666666666666666666666666",
+      "C": "7777777777777777777777777777777777777777777777777777777777777777"
+    }
+  },
+  "scenario": {
+    "scenario_id": "solo-a-b",
+    "flows": [
+      { "flow_id": "a-b", "source": "A", "destination": "B", "route_alias": "A-B" }
+    ],
+    "start_skew_limit_ns": 10000000
+  },
+  "payload_bytes": 64,
+  "mode": "stream",
+  "warmup": {
+    "planned_repetitions": 3,
+    "completed_repetitions": 3,
+    "minimum_duration_ns": 2000000000,
+    "minimum_messages": 1
+  },
+  "sampling": {
+    "planned_valid_repetitions": 10,
+    "maximum_attempts": 12,
+    "minimum_duration_ns": 3000000000,
+    "minimum_messages": 1
+  },
+  "socket": {
+    "transport": "tcp",
+    "persistent": true,
+    "tcp_nodelay": true,
+    "tls": false,
+    "compression": false,
+    "send_buffer_bytes": 1024,
+    "receive_buffer_bytes": 1024
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "valid": true,
+      "started_at": "2000-01-01T00:00:00Z",
+      "ended_at": "2000-01-01T00:00:01Z",
+      "start_skew_ns": 0,
+      "thermal": [
+        { "node": "A", "start_state": "nominal", "end_state": "nominal", "low_power_mode": false, "power_source": null },
+        { "node": "B", "start_state": "nominal", "end_state": "nominal", "low_power_mode": false, "power_source": null }
+      ],
+      "flows": [
+        {
+          "flow_id": "a-b",
+          "messages": 1,
+          "payload_bytes": 64,
+          "header_bytes": 64,
+          "ack_bytes": 0,
+          "receiver_elapsed_ns": 1000,
+          "checksum_algorithm": "sha256",
+          "checksum_count": 1,
+          "checksum_elapsed_ns": 100,
+          "sequence_first": 0,
+          "sequence_last": 0,
+          "copies": [
+            { "stage": "producer_to_send", "status": "available", "count": 1, "bytes": 64, "method": "synthetic fixture" },
+            { "stage": "kernel_dma_hardware", "status": "unavailable", "method": "synthetic fixture" }
+          ]
+        }
+      ],
+      "errors": []
+    }
+  ],
+  "summary": {
+    "valid_attempts": 1,
+    "invalid_attempts": 0,
+    "outcome": "complete",
+    "flow_summaries": [
+      {
+        "flow_id": "a-b",
+        "sample_count": 1,
+        "median_bytes_per_second": 64000000,
+        "p95_bytes_per_second": 64000000,
+        "minimum_bytes_per_second": 64000000,
+        "maximum_bytes_per_second": 64000000
+      }
+    ]
+  },
+  "errors": []
+}

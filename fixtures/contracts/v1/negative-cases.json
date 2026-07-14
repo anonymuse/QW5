@@ -1,0 +1,55 @@
+{
+  "schema": "qw5.contract-negative-cases/v1",
+  "cases": [
+    {
+      "case_id": "hardware-private-hostname",
+      "base_fixture": "hardware-inventory.valid.json",
+      "schema_file": "hardware-inventory.schema.json",
+      "operation": "add",
+      "instance_pointer": "/hostname",
+      "value": "private-hostname",
+      "expected_keyword": "additionalProperties",
+      "expected_error_pointer": "/"
+    },
+    {
+      "case_id": "tb5-wrong-start-skew-contract",
+      "base_fixture": "tb5-measurement.valid.json",
+      "schema_file": "tb5-measurement.schema.json",
+      "operation": "replace",
+      "instance_pointer": "/scenario/start_skew_limit_ns",
+      "value": 1,
+      "expected_keyword": "const",
+      "expected_error_pointer": "/scenario/start_skew_limit_ns"
+    },
+    {
+      "case_id": "model-mutable-revision",
+      "base_fixture": "model-artifact-manifest.valid.json",
+      "schema_file": "model-artifact-manifest.schema.json",
+      "operation": "replace",
+      "instance_pointer": "/repository/immutable_revision",
+      "value": "main",
+      "expected_keyword": "pattern",
+      "expected_error_pointer": "/repository/immutable_revision"
+    },
+    {
+      "case_id": "tensor-absolute-source-path",
+      "base_fixture": "tensor-inventory.valid.json",
+      "schema_file": "tensor-inventory.schema.json",
+      "operation": "replace",
+      "instance_pointer": "/tensors/0/source_file",
+      "value": "/private/model.safetensors",
+      "expected_keyword": "pattern",
+      "expected_error_pointer": "/tensors/0/source_file"
+    },
+    {
+      "case_id": "placement-measured-output-claim",
+      "base_fixture": "placement-analysis.valid.json",
+      "schema_file": "placement-analysis.schema.json",
+      "operation": "replace",
+      "instance_pointer": "/evidence_class",
+      "value": "MEASURED",
+      "expected_keyword": "enum",
+      "expected_error_pointer": "/evidence_class"
+    }
+  ]
+}
