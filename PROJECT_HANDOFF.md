@@ -6,8 +6,8 @@ Repository: https://github.com/anonymuse/QW5
 
 QW5 is an independent project. It must not merge Git history with QW3 or QW4.
 
-- QW3 continues as an independent implementation.
-- QW4 remains a frozen architectural artifact.
+- QW3 continues as an independent implementation (https://github.com/anonymuse/qw3).
+- QW4 remains a frozen architectural artifact (https://github.com/anonymuse/qw4).
 - QW5 is the OpenAI/Codex-led implementation.
 - QW3, QW4, DS4, llama.cpp, and MLX may be studied as references and baselines.
 - Do not directly copy source from DS4, QW3, or QW4 into QW5 without an explicit provenance decision.
