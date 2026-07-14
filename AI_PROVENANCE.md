@@ -27,7 +27,8 @@ machine. A concise summary of material human direction is sufficient.
 
 ## Bootstrap foundation record
 
-- **Date and pull request:** 2026-07-14; draft pull request for
+- **Date and pull request:** 2026-07-14;
+  [draft pull request #1](https://github.com/anonymuse/QW5/pull/1) on
   `codex/bootstrap-foundation`.
 - **Coding surface and model family:** Codex desktop; GPT-5.6 Sol, visible in the task
   interface.

@@ -2,15 +2,15 @@
 
 Last updated: 2026-07-14
 
-## Active
+## Review
 
 ### Repository foundation
 
-- **State:** active
+- **State:** review
 - **Owner:** Sol; single coherent task, no delegated or parallel writers
 - **Base:** `main` at `5e78a75fad3ee4150be12730ff8f0b24d67ba4a3`
 - **Branch:** `codex/bootstrap-foundation`
-- **Pull request:** pending draft creation
+- **Pull request:** [#1 — Bootstrap QW5 project foundation](https://github.com/anonymuse/QW5/pull/1)
 - **Objective:** Establish public repository policy, architecture records, evidence
   rules, Zig 0.16.0 bootstrap executable, read-only bootstrap inventory, and CI without
   implementing inference.
