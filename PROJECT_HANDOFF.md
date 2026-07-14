@@ -304,8 +304,6 @@ Private reasoning traces are not required. The public record should contain enou
 - Open draft pull requests when changes are ready for review.
 - Do not delete branches or worktrees without explicit confirmation.
 
-Use GPT-5.6 Sol for architectural decisions, difficult debugging, and final review; Terra for bounded implementation and test work; and Luna for mechanical or repetitive generation where appropriate.
-
 ## Initial public demonstration
 
 The intended showcase is a repo-scale coding task that:
