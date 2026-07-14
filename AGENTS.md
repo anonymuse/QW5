@@ -30,6 +30,24 @@ request a decision.
 - Do not delete a branch or worktree without explicit confirmation.
 - Do not merge QW3 or QW4 Git history into QW5.
 
+## Commit authorship
+
+- Every Git commit created by Codex MUST include this trailer exactly:
+
+  `Co-authored-by: OpenAI Codex <codex-ai@users.noreply.github.com>`
+
+- Use this commit-message template:
+
+  ```console
+  git commit -m "Commit message" \
+    -m "Co-authored-by: OpenAI Codex <codex-ai@users.noreply.github.com>"
+  ```
+
+- Do not use `--author` to add Codex as a co-author; `--author` changes the
+  commit's primary author. Use it only when the owner explicitly requests a
+  different primary author.
+- Verify the trailer is present before handoff.
+
 ## Scope and path ownership
 
 Every active task must state its objective, owned paths, inputs, dependencies, and
