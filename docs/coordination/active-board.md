@@ -2,16 +2,16 @@
 
 Last updated: 2026-07-14
 
-## Active
+## Review
 
 ### M1 contracts and measurement plan
 
-- **State:** active
+- **State:** review
 - **Owner:** Sol; single coherent architecture and contract task, no delegated or
   parallel writers
 - **Base:** `main` at `c8e71bda5246c1e39b4d82ab416934b93280ff25`
 - **Branch:** `codex/m1-contracts-and-measurement-plan`
-- **Pull request:** Not opened yet; this entry will be updated when the draft exists.
+- **Pull request:** [#3 — Define M1 contracts and measurement plan](https://github.com/anonymuse/QW5/pull/3)
 - **Objective:** Define M1 entry and exit criteria, evidence and decision gates,
   versioned public-safe inventory and artifact contracts, the six-direction
   Thunderbolt 5 measurement protocol, model/tensor identity, placement and
