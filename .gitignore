@@ -1,0 +1,55 @@
+# macOS metadata
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+.fseventsd
+
+# Zig build products and caches
+.zig-cache/
+zig-cache/
+zig-out/
+
+# Python bytecode, environments, and tool caches
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.coverage
+coverage.xml
+htmlcov/
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+.secrets/
+.credentials/
+credentials.local.*
+secrets.local.*
+
+# Downloaded weights and machine-local model staging
+/downloads/models/
+/local-models/
+/model-staging/
+/weights/
+
+# Temporary logs and machine-local benchmark scratch
+*.log
+/tmp/
+/scratch/
+/benchmark-scratch/
+/benchmarks/scratch/
+/results/local/
+
+# Intentionally do not ignore schemas, correctness fixtures, manifests, or
+# reviewed benchmark artifacts intended for source control.
