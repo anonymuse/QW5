@@ -44,10 +44,15 @@ SCHEMA_FILES = {
     "qw5.memory-baseline/v1": "memory-baseline.schema.json",
     "qw5.model-artifact-manifest/v1": "model-artifact-manifest.schema.json",
     "qw5.placement-analysis/v1": "placement-analysis.schema.json",
+    "qw5.safetensors-parser-profile/v1": "safetensors-parser-profile.schema.json",
     "qw5.tb5-link-summary/v1": "tb5-link-summary.schema.json",
+    "qw5.tb5-local-control-index/v1": "tb5-local-control-index.schema.json",
+    "qw5.tb5-local-control/v1": "tb5-local-control.schema.json",
     "qw5.tb5-measurement/v1": "tb5-measurement.schema.json",
+    "qw5.tb5-measurement-index/v1": "tb5-measurement-index.schema.json",
     "qw5.tb5-route-proof/v1": "tb5-route-proof.schema.json",
     "qw5.tb5-run-plan/v1": "tb5-run-plan.schema.json",
+    "qw5.tb5-synchronization-evidence/v1": "tb5-synchronization-evidence.schema.json",
     "qw5.tensor-inventory/v1": "tensor-inventory.schema.json",
 }
 
@@ -479,6 +484,169 @@ def semantic_tensor(data: dict[str, Any]) -> list[Issue]:
     return out
 
 
+def semantic_noop(data: dict[str, Any]) -> list[Issue]:
+    del data
+    return []
+
+
+def semantic_sync_evidence(data: dict[str, Any]) -> list[Issue]:
+    out: list[Issue] = []
+    participants = data["participants"]
+    flow_ids = [row["flow_id"] for row in participants]
+    if not ids_unique(flow_ids):
+        out.append(issue("TB_SYNC_FLOW_UNIQUE", "/participants", "participant flow IDs must be unique"))
+    expected_flows = SCENARIOS[data["scenario_id"]]
+    if tuple(flow_ids) != expected_flows or data["cell_id"].split(":")[1] != data["scenario_id"]:
+        out.append(issue("TB_SYNC_CELL_IDENTITY", "/participants", "cell, scenario, and participant flows must agree"))
+    for index, row in enumerate(participants):
+        if row["flow_id"] not in FLOW or row["worker_node"] != FLOW[row["flow_id"]][0]:
+            out.append(issue("TB_SYNC_WORKER_MAPPING", f"/participants/{index}", "worker node must be the directed-flow source"))
+    receipts = [row["coordinator_ack_receipt_ns"] for row in participants]
+    if any(value < data["coordinator"]["release_monotonic_ns"] for value in receipts):
+        out.append(issue("TB_SYNC_RECEIPT_ORDER", "/participants", "ack receipt precedes coordinator release"))
+    expected_rtt = max(value for row in participants for value in row["pre_attempt_control_rtt_ns"])
+    expected_worker = max(row["worker_start_to_ack_ns"] for row in participants)
+    expected_allowance = data["coordinator"]["clock_resolution_ns"] + max(
+        row["worker_clock_resolution_ns"] for row in participants
+    )
+    expected_spread = max(receipts) - min(receipts)
+    expected_window = expected_spread + expected_rtt + 2 * expected_worker + expected_allowance
+    derived = data["derived"]
+    expected = {
+        "pre_attempt_control_rtt_max_ns": expected_rtt,
+        "worker_start_to_ack_max_ns": expected_worker,
+        "timer_resolution_allowance_ns": expected_allowance,
+        "coordinator_receipt_spread_ns": expected_spread,
+        "coordinator_observed_start_window_ns": expected_window,
+    }
+    for name, value in expected.items():
+        if derived[name] != value:
+            out.append(issue("TB_SYNC_RECONCILIATION", f"/derived/{name}", f"expected {value}"))
+    expected_reasons = []
+    if expected_rtt > 1_000_000:
+        expected_reasons.append("SYNC_CONTROL_RTT_EXCEEDED")
+    if expected_window > 10_000_000:
+        expected_reasons.append("SYNC_OBSERVED_WINDOW_EXCEEDED")
+    expected_decision = "included" if not expected_reasons and not data["errors"] else "excluded"
+    if data["errors"]:
+        expected_decision = "undetermined"
+        expected_reasons.append("SYNC_EVIDENCE_ERROR")
+    if derived["inclusion_decision"] != expected_decision or derived["reasons"] != expected_reasons:
+        out.append(issue("TB_SYNC_DECISION", "/derived", f"expected {expected_decision} with {expected_reasons}"))
+    if data["artifact_role"] == "synchronization_evidence" and data["producer"]["dirty"]:
+        out.append(issue("TB_MEASURED_DIRTY", "/producer/dirty", "physical measured synchronization evidence requires a clean producer"))
+    return out
+
+
+def validate_sync_reference(
+    cell_id: str,
+    plan_sha256: str,
+    attempt: dict[str, Any],
+    raw: dict[str, Any],
+) -> list[Issue]:
+    out: list[Issue] = []
+    sync = attempt["synchronization"]
+    actual_digest = canonical_digest(raw)
+    if sync["evidence_sha256"] != actual_digest:
+        out.append(issue("TB_SYNC_EVIDENCE_DIGEST", "/synchronization/evidence_sha256", "raw canonical digest differs from the attempt reference"))
+    if (
+        raw["plan_sha256"] != plan_sha256
+        or raw["cell_id"] != cell_id
+        or raw["scenario_id"] != cell_id.split(":")[1]
+        or raw["attempt_id"] != attempt["attempt_id"]
+    ):
+        out.append(issue("TB_SYNC_EVIDENCE_IDENTITY", "/synchronization/evidence_sha256", "raw plan, cell, scenario, or attempt identity differs"))
+    expected_projection = {
+        "status": "available",
+        "method": raw["method"],
+        "calibration_rounds": len(raw["participants"][0]["pre_attempt_control_rtt_ns"]),
+        "coordinator_receipt_spread_ns": raw["derived"]["coordinator_receipt_spread_ns"],
+        "pre_attempt_control_rtt_max_ns": raw["derived"]["pre_attempt_control_rtt_max_ns"],
+        "worker_start_to_ack_max_ns": raw["derived"]["worker_start_to_ack_max_ns"],
+        "timer_resolution_allowance_ns": raw["derived"]["timer_resolution_allowance_ns"],
+        "coordinator_observed_start_window_ns": raw["derived"]["coordinator_observed_start_window_ns"],
+        "evidence_sha256": actual_digest,
+    }
+    if sync != expected_projection:
+        out.append(issue("TB_SYNC_EVIDENCE_PROJECTION", "/synchronization", "attempt synchronization projection differs from raw evidence"))
+    if raw["derived"]["inclusion_decision"] != "included":
+        required_reasons = set(raw["derived"]["reasons"])
+        if attempt["valid"] or not required_reasons.issubset(set(attempt["invalid_reasons"])):
+            out.append(issue("TB_SYNC_EVIDENCE_DECISION", "/synchronization", "excluded or undetermined raw evidence must invalidate the attempt with its reasons"))
+    return out
+
+
+def semantic_local_control(data: dict[str, Any]) -> list[Issue]:
+    out: list[Issue] = []
+    expected_scope = {
+        "buffer_copy": "copy_only",
+        "framing": "frame_and_verify",
+        "sha256": "generate_and_sha256",
+    }[data["control_id"]]
+    if data["buffer_policy"]["timing_scope"] != expected_scope:
+        out.append(issue("TB_CONTROL_TIMING_SCOPE", "/buffer_policy/timing_scope", f"expected {expected_scope}"))
+    expected_peak = 2 * data["payload_bytes"]
+    if data["buffer_policy"]["peak_application_buffer_bytes"] < expected_peak:
+        out.append(issue("TB_CONTROL_BUFFER_BOUND", "/buffer_policy/peak_application_buffer_bytes", f"expected at least {expected_peak}"))
+    if data["artifact_role"] == "local_control" and data["producer"]["dirty"]:
+        out.append(issue("TB_MEASURED_DIRTY", "/producer/dirty", "physical measured local controls require a clean producer"))
+    return out
+
+
+def expected_local_control_keys() -> set[tuple[str, str, int]]:
+    return {
+        (control, node, payload)
+        for node in ("A", "B", "C")
+        for payload in STREAM_PAYLOADS
+        for control in ("buffer_copy", "framing", "sha256")
+    }
+
+
+def ordered_local_control_keys() -> list[tuple[str, str, int]]:
+    return [
+        (control, node, payload)
+        for node in ("A", "B", "C")
+        for payload in STREAM_PAYLOADS
+        for control in ("buffer_copy", "framing", "sha256")
+    ]
+
+
+def semantic_local_control_index(data: dict[str, Any]) -> list[Issue]:
+    out: list[Issue] = []
+    entries = data["entries"]
+    keys = [(row["control_id"], row["node"], row["payload_bytes"]) for row in entries]
+    paths = [row["relative_path"] for row in entries]
+    digests = [row["sha256"] for row in entries]
+    if not ids_unique(keys) or not ids_unique(paths) or not ids_unique(digests):
+        out.append(issue("TB_CONTROL_INDEX_UNIQUE", "/entries", "control identities, paths, and digests must each be unique"))
+    if data["artifact_role"] == "local_control_index":
+        if set(keys) != expected_local_control_keys():
+            out.append(issue("TB_CONTROL_INDEX_COVERAGE", "/entries", "physical index must cover all 108 node/payload/control cells"))
+        if keys != ordered_local_control_keys():
+            out.append(issue("TB_CONTROL_INDEX_ORDER", "/entries", "physical index must use node, payload, then declared control order"))
+        if data["producer"]["dirty"]:
+            out.append(issue("TB_MEASURED_DIRTY", "/producer/dirty", "physical measured local-control index requires a clean producer"))
+    return out
+
+
+def semantic_measurement_index(data: dict[str, Any]) -> list[Issue]:
+    out: list[Issue] = []
+    entries = data["entries"]
+    cell_ids = [row["cell_id"] for row in entries]
+    paths = [row["relative_path"] for row in entries]
+    digests = [row["sha256"] for row in entries]
+    if not ids_unique(cell_ids) or not ids_unique(paths) or not ids_unique(digests):
+        out.append(issue("TB_MEASUREMENT_INDEX_UNIQUE", "/entries", "cell IDs, paths, and digests must each be unique"))
+    if data["artifact_role"] == "measurement_index":
+        if set(cell_ids) != required_cell_ids():
+            out.append(issue("TB_MEASUREMENT_INDEX_COVERAGE", "/entries", "physical index must cover all 246 cells"))
+        if cell_ids != scheduled_cell_ids(data["plan_seed"]):
+            out.append(issue("TB_MEASUREMENT_INDEX_ORDER", "/entries", "physical index must use the seed-derived schedule order"))
+        if data["producer"]["dirty"]:
+            out.append(issue("TB_MEASURED_DIRTY", "/producer/dirty", "physical measured index requires a clean producer"))
+    return out
+
+
 def semantic_placement(data: dict[str, Any]) -> list[Issue]:
     out: list[Issue] = []
     inputs = data["inputs"]
@@ -489,6 +657,10 @@ def semantic_placement(data: dict[str, Any]) -> list[Issue]:
         "quantization_layout": "qw5.quantization-layout/v1",
         "formula_set": "qw5.formula-set/v1",
         "text_subset_dependency": "qw5.text-subset-dependency/v1",
+        "gate_rule_set": "qw5.placement-gate-rule-set/v1",
+        "placement_candidate_set": "qw5.placement-candidate-set/v1",
+        "solver_objective": "qw5.placement-solver-objective/v1",
+        "reserve_headroom_policy": "qw5.reserve-headroom-policy/v1",
     }
     for name, expected_schema in expected_input_schemas.items():
         record = inputs[name]
@@ -505,6 +677,8 @@ def semantic_placement(data: dict[str, Any]) -> list[Issue]:
         out.append(issue("PLACEMENT_LAYOUT_IDENTITY", "/quantization_candidate/layout_spec_sha256", "layout digest differs from input identity"))
     if data["model"]["component_scope"] == "text_execution_subset" and inputs["text_subset_dependency"] is None:
         out.append(issue("PLACEMENT_TEXT_SUBSET_PROOF", "/inputs/text_subset_dependency", "text subset requires a dependency proof"))
+    if data["model"]["component_scope"] != "text_execution_subset" and inputs["text_subset_dependency"] is not None:
+        out.append(issue("PLACEMENT_TEXT_SUBSET_APPLICABILITY", "/inputs/text_subset_dependency", "non-subset analysis must not claim a text-subset proof"))
     size = data["size_reconciliation"]
     expected_total = sum(size[name] for name in (
         "packed_weight_bytes", "quantization_metadata_bytes", "padding_alignment_bytes",
@@ -555,24 +729,77 @@ def semantic_placement(data: dict[str, Any]) -> list[Issue]:
             out.append(issue("PLACEMENT_LINK_IDENTITY", f"/network_edges/{index}/link_summary_sha256", "link digest differs from input identity"))
     decision = data["decision"]
     required = set(decision["required_gates"])
+    applicable = set(decision["applicable_gates"])
     passed = set(decision["passed_gates"])
     failed = set(decision["failed_gates"])
     unresolved = set(decision["unresolved_gates"])
+    not_applicable = set(decision["not_applicable_gates"])
     if required != ALL_GATES:
         out.append(issue("PLACEMENT_GATE_REQUIRED_SET", "/decision/required_gates", "required gate set is not exhaustive"))
-    if (passed & failed) or (passed & unresolved) or (failed & unresolved):
-        out.append(issue("PLACEMENT_GATE_DISJOINT", "/decision", "passed, failed, and unresolved gates must be disjoint"))
-    if passed | failed | unresolved != required:
-        out.append(issue("PLACEMENT_GATE_COVERAGE", "/decision", "gate outcomes must cover every required gate"))
+    partitions = (passed, failed, unresolved, not_applicable)
+    if any(partitions[i] & partitions[j] for i in range(len(partitions)) for j in range(i + 1, len(partitions))):
+        out.append(issue("PLACEMENT_GATE_DISJOINT", "/decision", "passed, failed, unresolved, and not-applicable gates must be disjoint"))
+    if passed | failed | unresolved | not_applicable != required or applicable != passed | failed | unresolved:
+        out.append(issue("PLACEMENT_GATE_COVERAGE", "/decision", "applicable and not-applicable partitions must exhaust every required gate"))
+    evaluations = decision["gate_evaluations"]
+    evaluation_ids = [row["gate_id"] for row in evaluations]
+    if set(evaluation_ids) != ALL_GATES or not ids_unique(evaluation_ids):
+        out.append(issue("PLACEMENT_GATE_EVALUATION_COVERAGE", "/decision/gate_evaluations", "one evaluation is required for every gate"))
+    expected_dispositions = {
+        **{gate: "passed" for gate in passed},
+        **{gate: "failed" for gate in failed},
+        **{gate: "unresolved" for gate in unresolved},
+        **{gate: "not_applicable" for gate in not_applicable},
+    }
+    for index, row in enumerate(evaluations):
+        if row["disposition"] != expected_dispositions.get(row["gate_id"]):
+            out.append(issue("PLACEMENT_GATE_EVALUATION", f"/decision/gate_evaluations/{index}", "evaluation disagrees with gate partition"))
+        if row["disposition"] in {"passed", "failed"} and row["evidence_sha256"] is None:
+            out.append(issue("PLACEMENT_GATE_EVIDENCE", f"/decision/gate_evaluations/{index}/evidence_sha256", "passed or failed gate requires evidence"))
+        if row["disposition"] == "not_applicable" and row["evidence_sha256"] is not None:
+            out.append(issue("PLACEMENT_GATE_EVIDENCE", f"/decision/gate_evaluations/{index}/evidence_sha256", "not-applicable gate cannot carry success evidence"))
+    text_subset = data["model"]["component_scope"] == "text_execution_subset"
+    expected_not_applicable: set[str] = set()
+    if text_subset:
+        if "text_subset_proven" not in applicable or "text_subset_proven" in not_applicable:
+            out.append(issue("PLACEMENT_TEXT_SUBSET_APPLICABILITY", "/decision", "text-subset gate is applicable only to text-subset analyses"))
+    else:
+        expected_not_applicable.add("text_subset_proven")
+        if "text_subset_proven" not in not_applicable:
+            out.append(issue("PLACEMENT_TEXT_SUBSET_APPLICABILITY", "/decision/not_applicable_gates", "complete/non-subset analysis must mark text-subset proof not applicable"))
+    networked = bool(data["network_edges"])
+    if networked:
+        if inputs["link_summary"] is None or "transport_profile_available" not in applicable:
+            out.append(issue("PLACEMENT_TRANSPORT_APPLICABILITY", "/decision", "networked candidates require an applicable transport gate and link summary"))
+    else:
+        expected_not_applicable.add("transport_profile_available")
+        if inputs["link_summary"] is not None or "transport_profile_available" not in not_applicable:
+            out.append(issue("PLACEMENT_TRANSPORT_APPLICABILITY", "/decision", "network-free candidates must mark transport not applicable and omit link summary"))
+    if not_applicable != expected_not_applicable:
+        out.append(issue("PLACEMENT_GATE_APPLICABILITY", "/decision/not_applicable_gates", f"expected only {sorted(expected_not_applicable)}"))
     nonnegative = bool(headrooms) and min(headrooms) >= 0
     if nonnegative and "memory_nonnegative" not in passed:
         out.append(issue("PLACEMENT_MEMORY_GATE", "/decision", "nonnegative headroom must pass the memory gate"))
     if not nonnegative and "memory_nonnegative" in passed:
         out.append(issue("PLACEMENT_MEMORY_GATE", "/decision/passed_gates", "negative headroom cannot pass the memory gate"))
-    if decision["outcome"] == "GO" and (not nonnegative or passed != required):
-        out.append(issue("PLACEMENT_GO_GATES", "/decision/outcome", "GO requires every gate passed and nonnegative headroom"))
-    if decision["outcome"] == "CONDITIONAL_GO" and "memory_nonnegative" not in passed:
-        out.append(issue("PLACEMENT_CONDITIONAL_MEMORY", "/decision/outcome", "CONDITIONAL_GO still requires nonnegative memory"))
+    lineage_records = [
+        inputs["model_manifest"], inputs["tensor_inventory"], inputs["quantization_layout"],
+        inputs["formula_set"], inputs["gate_rule_set"], inputs["placement_candidate_set"],
+        inputs["solver_objective"], inputs["reserve_headroom_policy"],
+        *inputs["hardware_inventory"].values(), *inputs["memory_baseline"].values(),
+    ]
+    lineage_records.extend(record for record in (inputs["link_summary"], inputs["text_subset_dependency"]) if record is not None)
+    lineage_accepted = all(record["acceptance_status"] == "accepted" for record in lineage_records)
+    if failed or not nonnegative:
+        expected_outcome = "NO_GO"
+    elif unresolved or not lineage_accepted:
+        expected_outcome = "UNDETERMINED"
+    else:
+        expected_outcome = "GO"
+    if decision["outcome"] != expected_outcome:
+        out.append(issue("PLACEMENT_OUTCOME_DERIVATION", "/decision/outcome", f"expected {expected_outcome} from accepted lineage, gate outcomes, and headroom"))
+    if decision["outcome"] == "GO" and (applicable != passed or not lineage_accepted or decision["next_permitted_task"] is None):
+        out.append(issue("PLACEMENT_GO_GATES", "/decision/outcome", "GO requires every applicable gate passed, accepted lineage, nonnegative headroom, and a next task"))
     return out
 
 
@@ -619,6 +846,8 @@ def semantic_tb_plan(data: dict[str, Any]) -> list[Issue]:
 
 def semantic_route(data: dict[str, Any]) -> list[Issue]:
     out: list[Issue] = []
+    if data["artifact_role"] == "route_proof" and data["producer"]["dirty"]:
+        out.append(issue("TB_MEASURED_DIRTY", "/producer/dirty", "physical measured route proof requires a clean producer"))
     routes = data["routes"]
     ids = [row["flow_id"] for row in routes]
     if tuple(ids) != tuple(FLOW):
@@ -681,9 +910,24 @@ def scheduled_cell_ids(seed: int) -> list[str]:
 
 def semantic_tb_measurement(data: dict[str, Any]) -> list[Issue]:
     out = validate_scenario(data["scenario"])
+    if data["producer"]["qw5_commit"] != data["identity"]["qw5_commit"] or data["producer"]["dirty"] != data["identity"]["dirty"]:
+        out.append(issue("TB_MEASUREMENT_IDENTITY_RECONCILIATION", "/identity", "producer and measurement QW5 identities must match"))
+    if data["artifact_role"] == "measurement" and data["evidence_class"] == "MEASURED" and (data["identity"]["dirty"] or data["producer"]["dirty"]):
+        out.append(issue("TB_MEASURED_DIRTY", "/identity/dirty", "physical MEASURED TB5 evidence requires clean producer and QW5 identities"))
     scenario_id = data["scenario"]["scenario_id"]
     flow_ids = SCENARIOS[scenario_id]
     simultaneous = len(flow_ids) > 1
+    buffers = data["application_buffers"]
+    expected_buffer_projection = {
+        "bytes_per_buffer": data["payload_bytes"],
+        "active_flow_count": len(flow_ids),
+        "peak_application_payload_buffer_bytes": 2 * data["payload_bytes"] * len(flow_ids),
+    }
+    if any(buffers[name] != value for name, value in expected_buffer_projection.items()):
+        out.append(issue(
+            "TB_APPLICATION_BUFFER_RECONCILIATION", "/application_buffers",
+            f"expected {expected_buffer_projection}",
+        ))
     mode_id = "round-trip" if data["mode"] == "round_trip" else "stream"
     expected_cell_id = f"{mode_id}:{scenario_id}:{data['payload_bytes']}"
     if data["cell_id"] != expected_cell_id:
@@ -724,22 +968,20 @@ def semantic_tb_measurement(data: dict[str, Any]) -> list[Issue]:
                 if attempt["valid"]:
                     out.append(issue("TB_SYNC_EVIDENCE", base + "/synchronization", "simultaneous valid attempt requires synchronization evidence"))
             else:
-                expected_uncertainty = (
-                    sync["maximum_control_rtt_ns"]
-                    + 2 * sync["maximum_worker_start_ack_ns"]
+                expected_window = (
+                    sync["coordinator_receipt_spread_ns"]
+                    + sync["pre_attempt_control_rtt_max_ns"]
+                    + 2 * sync["worker_start_to_ack_max_ns"]
                     + sync["timer_resolution_allowance_ns"]
                 )
-                if sync["uncertainty_ns"] != expected_uncertainty:
-                    out.append(issue("TB_SYNC_RECONCILIATION", base + "/synchronization/uncertainty_ns", f"expected {expected_uncertainty}"))
-                expected_upper_bound = sync["coordinator_receipt_skew_ns"] + sync["uncertainty_ns"]
-                if sync["start_skew_upper_bound_ns"] != expected_upper_bound:
-                    out.append(issue("TB_SYNC_RECONCILIATION", base + "/synchronization/start_skew_upper_bound_ns", f"expected {expected_upper_bound}"))
-                uncertainty_exceeded = sync["uncertainty_ns"] > data["scenario"]["maximum_sync_uncertainty_ns"]
-                skew_exceeded = sync["start_skew_upper_bound_ns"] > data["scenario"]["start_skew_limit_ns"]
-                if uncertainty_exceeded and (attempt["valid"] or "SYNC_UNCERTAINTY_EXCEEDED" not in attempt["invalid_reasons"]):
-                    out.append(issue("TB_SYNC_UNCERTAINTY", base + "/synchronization/uncertainty_ns", "uncertainty above 1 ms must invalidate the retained attempt"))
-                if skew_exceeded and (attempt["valid"] or "START_SKEW_EXCEEDED" not in attempt["invalid_reasons"]):
-                    out.append(issue("TB_SYNC_SKEW", base + "/synchronization/start_skew_upper_bound_ns", "skew upper bound above 10 ms must invalidate the retained attempt"))
+                if sync["coordinator_observed_start_window_ns"] != expected_window:
+                    out.append(issue("TB_SYNC_RECONCILIATION", base + "/synchronization/coordinator_observed_start_window_ns", f"expected {expected_window}"))
+                rtt_exceeded = sync["pre_attempt_control_rtt_max_ns"] > data["scenario"]["maximum_pre_attempt_control_rtt_ns"]
+                window_exceeded = sync["coordinator_observed_start_window_ns"] > data["scenario"]["maximum_coordinator_observed_start_window_ns"]
+                if rtt_exceeded and (attempt["valid"] or "SYNC_CONTROL_RTT_EXCEEDED" not in attempt["invalid_reasons"]):
+                    out.append(issue("TB_SYNC_CONTROL_RTT", base + "/synchronization/pre_attempt_control_rtt_max_ns", "pre-attempt control RTT above 1 ms must invalidate the retained attempt"))
+                if window_exceeded and (attempt["valid"] or "SYNC_OBSERVED_WINDOW_EXCEEDED" not in attempt["invalid_reasons"]):
+                    out.append(issue("TB_SYNC_OBSERVED_WINDOW", base + "/synchronization/coordinator_observed_start_window_ns", "coordinator-observed window above 10 ms must invalidate the retained attempt"))
         elif sync["status"] != "not_required":
             out.append(issue("TB_SOLO_SYNC", base + "/synchronization", "solo attempt must mark cross-flow synchronization not required"))
         active_nodes = sorted({node for flow_id in flow_ids for node in FLOW[flow_id][:2]})
@@ -789,10 +1031,19 @@ def semantic_tb_measurement(data: dict[str, Any]) -> list[Issue]:
                 out.append(issue("TB_ENDPOINT_TIME", sample_base, "valid endpoint intervals must be positive"))
             if data["mode"] == "stream" and attempt["valid"]:
                 minimum = 2000000000 if attempt["phase"] == "warmup" else 3000000000
-                if receiver_elapsed < minimum:
-                    out.append(issue("TB_STREAM_DURATION", sample_base, f"receiver interval must be at least {minimum} ns"))
+                if source_elapsed < minimum or receiver_elapsed < minimum:
+                    out.append(issue("TB_STREAM_DURATION", sample_base, f"source and receiver intervals must be at least {minimum} ns"))
                 if sample["round_trip_ns"]:
                     out.append(issue("TB_STREAM_LATENCY", sample_base + "/round_trip_ns", "stream mode cannot report round-trip exchanges"))
+            if data["mode"] == "stream" and (
+                source_elapsed > 30_000_000_000
+                or receiver_elapsed > 30_000_000_000
+                or sample["logical_payload_bytes"] > 34_359_738_368
+            ):
+                out.append(issue(
+                    "TB_STREAM_CAP", sample_base,
+                    "stream interval or logical payload exceeds the frozen 30-second/32-GiB per-flow cap",
+                ))
             if data["mode"] == "round_trip" and attempt["valid"]:
                 expected_exchanges = (20 if data["payload_bytes"] == 4194304 else 100) if attempt["phase"] == "warmup" else (100 if data["payload_bytes"] == 4194304 else 1000)
                 if messages != expected_exchanges or len(sample["round_trip_ns"]) != expected_exchanges:
@@ -883,11 +1134,21 @@ def semantic_tb_measurement(data: dict[str, Any]) -> list[Issue]:
             out.append(issue("TB_FAILED_STATUS", "/summary/cell_status", "failed cell does not meet the mode-specific terminal rule"))
     if status == "ABORTED" and not data["errors"]:
         out.append(issue("TB_ABORT_STATUS", "/summary/cell_status", "aborted cell requires a retained run error"))
-    sync_unavailable = [row for row in measurements if row["synchronization"]["status"] in {"unavailable", "error"}]
-    if simultaneous and measurements and len(sync_unavailable) == len(measurements) and status != "UNDETERMINED":
-        out.append(issue("TB_SYNC_CELL_OUTCOME", "/summary/cell_status", "a simultaneous cell without synchronization evidence must be UNDETERMINED"))
-    if status == "UNDETERMINED" and not sync_unavailable:
-        out.append(issue("TB_UNDETERMINED_STATUS", "/summary/cell_status", "undetermined cell requires unavailable synchronization evidence"))
+    def synchronization_qualifies(attempt: dict[str, Any]) -> bool:
+        sync = attempt["synchronization"]
+        return (
+            sync["status"] == "available"
+            and sync["pre_attempt_control_rtt_max_ns"] <= data["scenario"]["maximum_pre_attempt_control_rtt_ns"]
+            and sync["coordinator_observed_start_window_ns"] <= data["scenario"]["maximum_coordinator_observed_start_window_ns"]
+        )
+
+    no_qualifying_sync = simultaneous and bool(measurements) and not any(
+        synchronization_qualifies(attempt) for attempt in measurements
+    )
+    if no_qualifying_sync and status not in {"UNDETERMINED", "ABORTED"}:
+        out.append(issue("TB_SYNC_CELL_OUTCOME", "/summary/cell_status", "a simultaneous cell with no qualifying empirical synchronization record must be UNDETERMINED unless a terminal run error aborted it"))
+    if status == "UNDETERMINED" and not no_qualifying_sync:
+        out.append(issue("TB_UNDETERMINED_STATUS", "/summary/cell_status", "undetermined simultaneous cell requires recorded attempts with no qualifying empirical synchronization record"))
     return out
 
 
@@ -955,6 +1216,8 @@ def required_cell_ids() -> set[str]:
 
 def semantic_link_summary(data: dict[str, Any]) -> list[Issue]:
     out: list[Issue] = []
+    if data["artifact_role"] == "link_summary" and data["producer"]["dirty"]:
+        out.append(issue("TB_MEASURED_DIRTY", "/producer/dirty", "physical measured link summary requires a clean producer"))
     cells = data["cells"]
     ids = [row["cell_id"] for row in cells]
     if set(ids) != required_cell_ids() or not ids_unique(ids):
@@ -1014,6 +1277,25 @@ def semantic_link_summary(data: dict[str, Any]) -> list[Issue]:
                 out.append(issue("TB_SUMMARY_METRIC_UNIT", base + f"/flow_summaries/{flow_index}", "flow metric units are fixed"))
         if row["thermal_regimes"] != sorted(row["thermal_regimes"]):
             out.append(issue("TB_SUMMARY_THERMAL_ORDER", base + "/thermal_regimes", "thermal regimes must be sorted"))
+        if row["status"] == "COMPLETE":
+            if row["mode"] == "stream":
+                expected_count = 10
+                if row["aggregate_throughput"]["sample_count"] != expected_count or any(
+                    flow["throughput"]["sample_count"] != expected_count
+                    or flow["round_trip_latency"]["sample_count"] != 0
+                    for flow in row["flow_summaries"]
+                ):
+                    out.append(issue("TB_SUMMARY_COMPLETE_EVIDENCE", base, "complete stream cell requires ten per-flow and aggregate throughput samples and no latency samples"))
+            else:
+                expected_count = 100 if row["payload_bytes"] == 4_194_304 else 1000
+                if row["aggregate_throughput"]["sample_count"] != 0 or any(
+                    flow["throughput"]["sample_count"] != 0
+                    or flow["round_trip_latency"]["sample_count"] != expected_count
+                    for flow in row["flow_summaries"]
+                ):
+                    out.append(issue("TB_SUMMARY_COMPLETE_EVIDENCE", base, f"complete round-trip cell requires {expected_count} latency samples per flow and no throughput samples"))
+            if row["errors"]:
+                out.append(issue("TB_SUMMARY_COMPLETE_ERRORS", base + "/errors", "complete cell cannot retain a terminal cell error"))
     counts = Counter(row["status"].lower() + "_cells" for row in cells)
     coverage = data["coverage"]
     for key in ("complete_cells", "failed_cells", "aborted_cells", "undetermined_cells"):
@@ -1022,15 +1304,93 @@ def semantic_link_summary(data: dict[str, Any]) -> list[Issue]:
     return out
 
 
+def canonical_digest(data: Any) -> str:
+    return hashlib.sha256(canonical_text(data).encode("utf-8")).hexdigest()
+
+
+def validate_tb5_evidence_bundle(
+    summary: dict[str, Any],
+    measurement_index: dict[str, Any],
+    raw_by_path: dict[str, dict[str, Any]],
+    synchronization_by_digest: dict[str, dict[str, Any]] | None = None,
+) -> list[Issue]:
+    out: list[Issue] = []
+    synchronization_by_digest = synchronization_by_digest or {}
+    if canonical_digest(measurement_index) != summary["measurement_index_sha256"]:
+        out.append(issue("TB_SUMMARY_INDEX_DIGEST", "/measurement_index_sha256", "canonical index digest does not match the summary"))
+    if measurement_index["plan_sha256"] != summary["plan_sha256"] or measurement_index["plan_seed"] != summary["plan_seed"]:
+        out.append(issue("TB_SUMMARY_INDEX_PLAN", "/measurement_index_sha256", "index plan identity differs from summary"))
+    by_cell = {row["cell_id"]: row for row in measurement_index["entries"]}
+    if len(by_cell) != len(measurement_index["entries"]) or set(by_cell) != {row["cell_id"] for row in summary["cells"]}:
+        out.append(issue("TB_SUMMARY_INDEX_COVERAGE", "/measurement_index_sha256", "index must resolve every summary cell exactly once"))
+        return out
+    for cell_index, cell in enumerate(summary["cells"]):
+        base = f"/cells/{cell_index}"
+        entry = by_cell[cell["cell_id"]]
+        raw = raw_by_path.get(entry["relative_path"])
+        if raw is None:
+            out.append(issue("TB_SUMMARY_MEASUREMENT_RESOLUTION", base + "/measurement_sha256", "index path did not resolve"))
+            continue
+        digest = canonical_digest(raw)
+        if digest != entry["sha256"] or digest != cell["measurement_sha256"]:
+            out.append(issue("TB_SUMMARY_MEASUREMENT_DIGEST", base + "/measurement_sha256", "raw canonical digest, index digest, and cell digest differ"))
+        projected_flows = [
+            {
+                "flow_id": row["flow_id"],
+                "throughput": row["throughput"],
+                "round_trip_latency": row["round_trip_latency"],
+            }
+            for row in raw["summary"]["flow_summaries"]
+        ]
+        projected = {
+            "cell_id": raw["cell_id"],
+            "schedule_index": raw["schedule_index"],
+            "mode": raw["mode"],
+            "scenario_id": raw["scenario"]["scenario_id"],
+            "payload_bytes": raw["payload_bytes"],
+            "status": raw["summary"]["cell_status"],
+            "measurement_sha256": digest,
+            "flow_summaries": projected_flows,
+            "aggregate_throughput": raw["summary"]["aggregate_throughput"],
+            "thermal_regimes": raw["summary"]["thermal_regimes"],
+            "exclusions": raw["exclusions"],
+            "errors": raw["errors"],
+        }
+        if projected != cell:
+            out.append(issue("TB_SUMMARY_RAW_RECONCILIATION", base, "summary cell disagrees with its raw measurement projection"))
+        for attempt_index, attempt in enumerate(raw["attempts"]):
+            sync = attempt["synchronization"]
+            if sync["status"] != "available":
+                continue
+            sync_raw = synchronization_by_digest.get(sync["evidence_sha256"])
+            if sync_raw is None:
+                out.append(issue(
+                    "TB_SYNC_EVIDENCE_RESOLUTION",
+                    base + f"/attempts/{attempt_index}/synchronization/evidence_sha256",
+                    "synchronization digest did not resolve to a raw artifact",
+                ))
+                continue
+            sync_issues = validate_instance(sync_raw, "qw5.tb5-synchronization-evidence/v1")
+            out.extend(sync_issues)
+            if not sync_issues:
+                out.extend(validate_sync_reference(raw["cell_id"], raw["identity"]["plan_sha256"], attempt, sync_raw))
+    return out
+
+
 SEMANTIC_VALIDATORS: dict[str, Callable[[dict[str, Any]], list[Issue]]] = {
     "qw5.hardware-inventory/v1": semantic_hardware,
     "qw5.memory-baseline/v1": semantic_memory,
     "qw5.model-artifact-manifest/v1": semantic_model,
     "qw5.placement-analysis/v1": semantic_placement,
+    "qw5.safetensors-parser-profile/v1": semantic_noop,
     "qw5.tb5-link-summary/v1": semantic_link_summary,
+    "qw5.tb5-local-control-index/v1": semantic_local_control_index,
+    "qw5.tb5-local-control/v1": semantic_local_control,
     "qw5.tb5-measurement/v1": semantic_tb_measurement,
+    "qw5.tb5-measurement-index/v1": semantic_measurement_index,
     "qw5.tb5-route-proof/v1": semantic_route,
     "qw5.tb5-run-plan/v1": semantic_tb_plan,
+    "qw5.tb5-synchronization-evidence/v1": semantic_sync_evidence,
     "qw5.tensor-inventory/v1": semantic_tensor,
 }
 
@@ -1199,6 +1559,337 @@ def verify_wire_vectors() -> int:
     return failures
 
 
+def safetensors_duplicate_guard(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise JsonInputError("SAFETENSORS_DUPLICATE_MEMBER", f"duplicate header member {key!r}")
+        result[key] = value
+    return result
+
+
+def parse_safetensors_v1(raw: bytes) -> list[dict[str, Any]]:
+    if len(raw) < 8:
+        raise JsonInputError("SAFETENSORS_HEADER_LENGTH", "missing little-endian u64 header length")
+    header_length = struct.unpack("<Q", raw[:8])[0]
+    if header_length > 16_777_216:
+        raise JsonInputError("SAFETENSORS_HEADER_LIMIT", "header exceeds the QW5 v1 limit")
+    if header_length == 0 or 8 + header_length > len(raw):
+        raise JsonInputError("SAFETENSORS_HEADER_TRUNCATED", "declared header does not fit the artifact")
+    header_raw = raw[8:8 + header_length]
+    if not header_raw.startswith(b"{"):
+        raise JsonInputError("SAFETENSORS_HEADER_OBJECT", "header must start with an object")
+    unpadded = header_raw.rstrip(b" ")
+    if not unpadded.endswith(b"}"):
+        raise JsonInputError("SAFETENSORS_HEADER_PADDING", "only ASCII-space header padding is accepted")
+    try:
+        header_text = unpadded.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise JsonInputError("SAFETENSORS_UTF8", str(exc)) from exc
+    try:
+        header = json.loads(
+            header_text,
+            object_pairs_hook=safetensors_duplicate_guard,
+            parse_float=reject_float,
+            parse_constant=reject_constant,
+        )
+    except JsonInputError:
+        raise
+    except json.JSONDecodeError as exc:
+        raise JsonInputError("SAFETENSORS_JSON", str(exc)) from exc
+    if not isinstance(header, dict):
+        raise JsonInputError("SAFETENSORS_HEADER_OBJECT", "header must be an object")
+    tensor_items = [(name, row) for name, row in header.items() if name != "__metadata__"]
+    if len(tensor_items) > 1_000_000:
+        raise JsonInputError("SAFETENSORS_TENSOR_LIMIT", "tensor count exceeds the QW5 v1 limit")
+    data = raw[8 + header_length:]
+    tensors: list[dict[str, Any]] = []
+    ranges: list[tuple[int, int]] = []
+    for name, row in tensor_items:
+        if not isinstance(name, str) or not isinstance(row, dict) or set(row) != {"dtype", "shape", "data_offsets"}:
+            raise JsonInputError("SAFETENSORS_TENSOR_MEMBERS", f"invalid tensor record {name!r}")
+        dtype = row["dtype"]
+        if dtype not in DTYPES:
+            raise JsonInputError("SAFETENSORS_DTYPE", f"unsupported dtype {dtype!r}")
+        shape = row["shape"]
+        if not isinstance(shape, list) or len(shape) > 16 or any(
+            type(dimension) is not int or dimension < 0 or dimension > 9_223_372_036_854_775_807
+            for dimension in shape
+        ):
+            raise JsonInputError("SAFETENSORS_SHAPE", f"invalid shape for {name!r}")
+        element_count = 1
+        for dimension in shape:
+            if dimension and element_count > U64_MAX // dimension:
+                raise JsonInputError("SAFETENSORS_SHAPE_OVERFLOW", f"shape product overflows u64 for {name!r}")
+            element_count *= dimension
+        offsets = row["data_offsets"]
+        if not isinstance(offsets, list) or len(offsets) != 2 or any(type(value) is not int or value < 0 for value in offsets):
+            raise JsonInputError("SAFETENSORS_OFFSETS", f"invalid offsets for {name!r}")
+        start, end = offsets
+        if start > end or end > len(data):
+            raise JsonInputError("SAFETENSORS_OFFSETS", f"out-of-bounds offsets for {name!r}")
+        width = DTYPES[dtype][1]
+        if element_count > U64_MAX // width or end - start != element_count * width:
+            raise JsonInputError("SAFETENSORS_DTYPE_BYTES", f"dtype/shape byte count differs from offsets for {name!r}")
+        ranges.append((start, end))
+        tensors.append({
+            "name": name, "dtype": dtype, "shape": shape,
+            "element_count": element_count, "stored_bytes": end - start,
+            "data_offsets": offsets,
+        })
+    cursor = 0
+    for start, end in sorted(ranges):
+        if start != cursor:
+            raise JsonInputError("SAFETENSORS_RANGE_COVERAGE", "tensor ranges overlap or leave a hole")
+        cursor = end
+    if cursor != len(data):
+        raise JsonInputError("SAFETENSORS_RANGE_COVERAGE", "tensor ranges do not cover the data buffer")
+    return tensors
+
+
+def verify_safetensors_vectors() -> int:
+    failures = 0
+    vectors = load_json(FIXTURE_DIR / "safetensors-parser-v1.vectors.json")
+    vector_ids = [row.get("vector_id") for row in vectors.get("valid_vectors", []) + vectors.get("invalid_sources", [])]
+    if vectors.get("schema") != "qw5.safetensors-parser-vectors/v1" or not ids_unique(vector_ids):
+        print("FAIL SafeTensors vectors: schema ID missing or vector IDs are not unique")
+        return 1
+    for row in vectors["valid_vectors"]:
+        raw = bytes.fromhex(row["source_hex"])
+        try:
+            tensors = parse_safetensors_v1(raw)
+        except JsonInputError as exc:
+            print(f"FAIL SafeTensors vector {row['vector_id']}: {exc.code} {exc}")
+            failures += 1
+            continue
+        if hashlib.sha256(raw).hexdigest() != row["sha256"] or tensors != row["tensors"]:
+            print(f"FAIL SafeTensors vector {row['vector_id']}: digest or tensor projection mismatch")
+            failures += 1
+    for row in vectors["invalid_sources"]:
+        try:
+            parse_safetensors_v1(bytes.fromhex(row["source_hex"]))
+        except JsonInputError as exc:
+            if exc.code != row["expected_error"]:
+                print(f"FAIL SafeTensors negative {row['vector_id']}: expected {row['expected_error']}, got {exc.code}")
+                failures += 1
+        else:
+            print(f"FAIL SafeTensors negative {row['vector_id']}: source was accepted")
+            failures += 1
+    return failures
+
+
+def generated_aborted_measurement(cell_id: str, schedule_index: int, seed: int) -> dict[str, Any]:
+    mode_label, scenario_id, payload_text = cell_id.split(":")
+    mode = "round_trip" if mode_label == "round-trip" else "stream"
+    payload = int(payload_text)
+    flow_ids = SCENARIOS[scenario_id]
+    scenario_flows = [
+        {"flow_id": flow_id, "source": FLOW[flow_id][0], "destination": FLOW[flow_id][1], "route_alias": FLOW[flow_id][2]}
+        for flow_id in flow_ids
+    ]
+    unavailable_integer = {"status": "unavailable", "method": "generated_fixture"}
+    unavailable_string = {"status": "unavailable", "method": "generated_fixture"}
+    socket_value = {
+        "tcp_nodelay": True, "send_buffer_bytes": 1, "receive_buffer_bytes": 1,
+        "address_family": "ipv6", "congestion_control": unavailable_string,
+        "maximum_segment_bytes": unavailable_integer,
+    }
+    socket_settings = [
+        {
+            "flow_id": flow_id, "endpoint": endpoint,
+            "requested": copy.deepcopy(socket_value), "effective": copy.deepcopy(socket_value),
+        }
+        for flow_id in flow_ids
+        for endpoint in FLOW[flow_id][:2]
+    ]
+    copy_rows = lambda flow_id: [
+        {
+            "endpoint": endpoint, "stage": stage, "status": "unavailable",
+            "evidence_class": None, "observation_method": "generated_fixture",
+        }
+        for endpoint, stage in sorted(expected_copy_keys(flow_id))
+    ]
+    flow_samples = [
+        {
+            "flow_id": flow_id,
+            "source_monotonic_start_ns": 1, "source_monotonic_end_ns": 1,
+            "receiver_monotonic_start_ns": 1, "receiver_monotonic_end_ns": 1,
+            "messages": 0, "logical_payload_bytes": 0, "header_bytes": 0,
+            "digest_trailer_bytes": 0, "ack_bytes": 0,
+            "source_socket_bytes": copy.deepcopy(unavailable_integer),
+            "receiver_socket_bytes": copy.deepcopy(unavailable_integer),
+            "checksum_algorithm": "sha256", "checksum_count": 0,
+            "checksum_elapsed_ns": 0, "sequence_first": 0, "sequence_last": 0,
+            "round_trip_ns": [], "copies": copy_rows(flow_id),
+            "errors": [{"code": "GENERATED_ABORT", "message": "Generated bundle fixture."}],
+        }
+        for flow_id in flow_ids
+    ]
+    active_nodes = sorted({node for flow_id in flow_ids for node in FLOW[flow_id][:2]})
+    thermal = [
+        {
+            "node": node, "start_monotonic_ns": 1, "end_monotonic_ns": 1,
+            "start_state": "nominal", "end_state": "nominal",
+            "start_low_power_mode": False, "end_low_power_mode": False,
+            "start_power_source": None, "end_power_source": None,
+        }
+        for node in active_nodes
+    ]
+    if len(flow_ids) == 1:
+        sync = {
+            "status": "not_required", "method": "not_required", "calibration_rounds": None,
+            "coordinator_receipt_spread_ns": None, "pre_attempt_control_rtt_max_ns": None,
+            "worker_start_to_ack_max_ns": None, "timer_resolution_allowance_ns": None,
+            "coordinator_observed_start_window_ns": None, "evidence_sha256": None,
+        }
+    else:
+        sync = {
+            "status": "unavailable", "method": "unavailable", "calibration_rounds": None,
+            "coordinator_receipt_spread_ns": None, "pre_attempt_control_rtt_max_ns": None,
+            "worker_start_to_ack_max_ns": None, "timer_resolution_allowance_ns": None,
+            "coordinator_observed_start_window_ns": None, "evidence_sha256": None,
+        }
+    empty_throughput = expected_metric([], "bytes_per_second")
+    empty_latency = expected_metric([], "ns")
+    error = {"code": "GENERATED_ABORT", "message": "Generated bundle fixture."}
+    return {
+        "schema": "qw5.tb5-measurement/v1", "artifact_role": "schema_fixture",
+        "evidence_class": "SIMULATED", "run_id": "generated-bundle", "cell_id": cell_id,
+        "created_at": "2000-01-01T00:00:00Z",
+        "producer": {
+            "name": "qw5-generated-schema-fixture", "version": "1",
+            "executable_sha256": "41" * 32, "qw5_commit": "41" * 20,
+            "dirty": False, "parameters": ["--generated-bundle"],
+        },
+        "identity": {
+            "qw5_commit": "41" * 20, "dirty": False, "plan_sha256": "43" * 32,
+            "harness_sha256": "41" * 32, "route_proof_sha256": "42" * 32,
+            "inventory_sha256": {"A": "44" * 32, "B": "45" * 32, "C": "46" * 32},
+            "local_control_index_sha256": "45" * 32,
+        },
+        "plan_seed": seed, "schedule_index": schedule_index,
+        "scenario": {
+            "scenario_id": scenario_id, "flows": scenario_flows,
+            "maximum_pre_attempt_control_rtt_ns": 1_000_000,
+            "maximum_coordinator_observed_start_window_ns": 10_000_000,
+        },
+        "payload_bytes": payload, "mode": mode,
+        "application_buffers": {
+            "send_payload_buffers_per_flow": 1,
+            "receive_payload_buffers_per_flow": 1,
+            "bytes_per_buffer": payload,
+            "active_flow_count": len(flow_ids),
+            "peak_application_payload_buffer_bytes": 2 * payload * len(flow_ids),
+        },
+        "framing": {
+            "protocol": "qw5-tb5-wire/v1", "handshake_bytes": 96,
+            "data_header_bytes": 64, "digest_trailer_bytes": 32,
+            "ack_bytes": 64 if mode == "round_trip" else 0, "checksum": "sha256",
+        },
+        "socket_settings": socket_settings,
+        "attempts": [{
+            "attempt_id": "warmup-001", "phase": "warmup", "attempt_index": 1,
+            "valid": False, "invalid_reasons": ["GENERATED_ABORT"],
+            "coordinator_release_at": "2000-01-01T00:00:00Z",
+            "synchronization": sync, "thermal": thermal, "flows": flow_samples,
+            "errors": [error],
+        }],
+        "summary": {
+            "cell_status": "ABORTED", "warmup_attempts": 1, "measurement_attempts": 0,
+            "valid_measurement_attempts": 0, "invalid_measurement_attempts": 0,
+            "replacement_attempts": 0,
+            "flow_summaries": [
+                {
+                    "flow_id": flow_id, "valid_attempts": 0, "invalid_attempts": 0,
+                    "throughput": empty_throughput, "round_trip_latency": empty_latency,
+                    "thermal_regimes": [],
+                }
+                for flow_id in flow_ids
+            ],
+            "aggregate_throughput": empty_throughput, "thermal_regimes": [],
+        },
+        "exclusions": [{"attempt_id": "warmup-001", "reason": "GENERATED_ABORT", "included_in_failure_rate": True}],
+        "errors": [error],
+    }
+
+
+def verify_generated_local_control_bundle() -> int:
+    failures = 0
+    raw_by_path: dict[str, dict[str, Any]] = {}
+    entries = []
+    timing_scopes = {
+        "buffer_copy": "copy_only", "framing": "frame_and_verify",
+        "sha256": "generate_and_sha256",
+    }
+    for control, node, payload in ordered_local_control_keys():
+        raw = {
+            "schema": "qw5.tb5-local-control/v1", "artifact_role": "schema_fixture",
+            "evidence_class": "SIMULATED", "created_at": "2000-01-01T00:00:00Z",
+            "producer": {
+                "name": "qw5-generated-schema-fixture", "version": "1",
+                "executable_sha256": "47" * 32, "qw5_commit": "47" * 20,
+                "dirty": False, "parameters": ["--generated-control-bundle"],
+            },
+            "plan_sha256": "43" * 32, "control_id": control, "node": node,
+            "payload_bytes": payload, "status": "COMPLETE",
+            "buffer_policy": {
+                "preallocated_input_buffers": 1, "preallocated_output_buffers": 1,
+                "peak_application_buffer_bytes": 2 * payload,
+                "timing_scope": timing_scopes[control],
+            },
+            "warmup_elapsed_ns": [3, 2, 1],
+            "recorded_elapsed_ns": list(range(1, 11)), "errors": [],
+        }
+        path = f"controls/{node}/{payload}/{control}.json"
+        digest = canonical_digest(raw)
+        raw_by_path[path] = raw
+        entries.append({
+            "control_id": control, "node": node, "payload_bytes": payload,
+            "relative_path": path, "sha256": digest,
+        })
+    index = {
+        "schema": "qw5.tb5-local-control-index/v1", "artifact_role": "schema_fixture",
+        "evidence_class": "SIMULATED", "created_at": "2000-01-01T00:00:00Z",
+        "producer": {
+            "name": "qw5-generated-schema-fixture", "version": "1",
+            "executable_sha256": "48" * 32, "qw5_commit": "48" * 20,
+            "dirty": False, "parameters": ["--generated-control-bundle"],
+        },
+        "plan_sha256": "43" * 32, "canonical_profile": "qw5-canonical-json-v1",
+        "entries": entries,
+    }
+    issues = validate_instance(index, "qw5.tb5-local-control-index/v1")
+    for raw in raw_by_path.values():
+        issues.extend(validate_instance(raw, "qw5.tb5-local-control/v1"))
+    if issues:
+        for item in issues:
+            print(f"FAIL generated local controls: {item.code} {item.pointer}: {item.message}")
+        return len(issues)
+    keys = {(row["control_id"], row["node"], row["payload_bytes"]) for row in entries}
+    if keys != expected_local_control_keys() or len(entries) != 108:
+        print("FAIL generated local controls: index does not cover all 108 cells")
+        failures += 1
+    for entry in entries:
+        raw = raw_by_path.get(entry["relative_path"])
+        if raw is None or canonical_digest(raw) != entry["sha256"]:
+            print("FAIL generated local controls: path/digest did not resolve")
+            failures += 1
+            break
+    missing = entries[:-1]
+    if len(missing) == 108 or {
+        (row["control_id"], row["node"], row["payload_bytes"]) for row in missing
+    } == expected_local_control_keys():
+        print("FAIL generated local controls negative missing-entry: hostile was not detected")
+        failures += 1
+    first = entries[0]
+    disagreeing = copy.deepcopy(raw_by_path[first["relative_path"]])
+    disagreeing["recorded_elapsed_ns"][0] += 1
+    if canonical_digest(disagreeing) == first["sha256"]:
+        print("FAIL generated local controls negative digest-disagreement: hostile was not detected")
+        failures += 1
+    return failures
+
+
 def verify_generated_link_summary() -> int:
     failures = 0
     null_throughput = expected_metric([], "bytes_per_second")
@@ -1206,23 +1897,48 @@ def verify_generated_link_summary() -> int:
     seed = 42
     ordered_cells = scheduled_cell_ids(seed)
     cells = []
+    raw_by_path: dict[str, dict[str, Any]] = {}
+    index_entries = []
     for index, cell_id in enumerate(ordered_cells):
         mode, scenario_id, payload = cell_id.split(":")
+        mode_name = "round_trip" if mode == "round-trip" else "stream"
+        raw = generated_aborted_measurement(cell_id, index, seed)
+        relative_path = f"measurements/{index:03d}.json"
+        digest = canonical_digest(raw)
+        raw_by_path[relative_path] = raw
+        index_entries.append({"cell_id": cell_id, "relative_path": relative_path, "sha256": digest})
         cells.append({
             "cell_id": cell_id,
             "schedule_index": index,
-            "mode": "round_trip" if mode == "round-trip" else "stream",
+            "mode": mode_name,
             "scenario_id": scenario_id,
             "payload_bytes": int(payload),
-            "status": "UNDETERMINED",
-            "measurement_sha256": hashlib.sha256(cell_id.encode("utf-8")).hexdigest(),
+            "status": "ABORTED",
+            "measurement_sha256": digest,
             "flow_summaries": [
                 {"flow_id": flow_id, "throughput": null_throughput, "round_trip_latency": null_latency}
                 for flow_id in SCENARIOS[scenario_id]
             ],
             "aggregate_throughput": null_throughput,
             "thermal_regimes": [],
+            "exclusions": raw["exclusions"],
+            "errors": raw["errors"],
         })
+    measurement_index = {
+        "schema": "qw5.tb5-measurement-index/v1",
+        "artifact_role": "schema_fixture",
+        "evidence_class": "SIMULATED",
+        "created_at": "2000-01-01T00:00:00Z",
+        "producer": {
+            "name": "qw5-generated-schema-fixture", "version": "1",
+            "executable_sha256": "42" * 32, "qw5_commit": "42" * 20,
+            "dirty": False, "parameters": ["--generated-bundle"],
+        },
+        "plan_sha256": "43" * 32,
+        "plan_seed": seed,
+        "canonical_profile": "qw5-canonical-json-v1",
+        "entries": index_entries,
+    }
     data = {
         "schema": "qw5.tb5-link-summary/v1",
         "artifact_role": "schema_fixture",
@@ -1234,16 +1950,20 @@ def verify_generated_link_summary() -> int:
         },
         "plan_sha256": "43" * 32,
         "plan_seed": seed,
-        "measurement_index_sha256": "44" * 32,
+        "measurement_index_sha256": canonical_digest(measurement_index),
         "local_controls_sha256": "45" * 32,
         "coverage": {
             "planned_cells": 246, "complete_cells": 0, "failed_cells": 0,
-            "aborted_cells": 0, "undetermined_cells": 246,
+            "aborted_cells": 246, "undetermined_cells": 0,
         },
         "cells": cells,
         "prohibited_claims": ["Generated schema fixture; not link evidence."],
     }
     issues = validate_instance(data, "qw5.tb5-link-summary/v1")
+    issues.extend(validate_instance(measurement_index, "qw5.tb5-measurement-index/v1"))
+    for raw in raw_by_path.values():
+        issues.extend(validate_instance(raw, "qw5.tb5-measurement/v1"))
+    issues.extend(validate_tb5_evidence_bundle(data, measurement_index, raw_by_path))
     if issues:
         for item in issues:
             print(f"FAIL generated link summary: {item.code} {item.pointer}: {item.message}")
@@ -1264,6 +1984,22 @@ def verify_generated_link_summary() -> int:
         if expected not in codes:
             print(f"FAIL generated link summary negative {case_id}: expected {expected}; got {sorted(codes)}")
             failures += 1
+    all_complete = copy.deepcopy(data)
+    for cell in all_complete["cells"]:
+        cell["status"] = "COMPLETE"
+        cell["errors"] = []
+    all_complete["coverage"].update({"complete_cells": 246, "aborted_cells": 0})
+    codes = {item.code for item in validate_instance(all_complete, "qw5.tb5-link-summary/v1")}
+    if "TB_SUMMARY_COMPLETE_EVIDENCE" not in codes:
+        print(f"FAIL generated link summary negative all-complete-zero-samples: got {sorted(codes)}")
+        failures += 1
+    raw_disagreement = copy.deepcopy(raw_by_path)
+    first_path = measurement_index["entries"][0]["relative_path"]
+    raw_disagreement[first_path]["payload_bytes"] += 1
+    codes = {item.code for item in validate_tb5_evidence_bundle(data, measurement_index, raw_disagreement)}
+    if "TB_SUMMARY_RAW_RECONCILIATION" not in codes or "TB_SUMMARY_MEASUREMENT_DIGEST" not in codes:
+        print(f"FAIL generated link summary negative raw-disagreement: got {sorted(codes)}")
+        failures += 1
     if failures:
         return failures
     return 0
@@ -1303,6 +2039,92 @@ def verify_negative_cases() -> int:
     return failures
 
 
+def verify_tb5_evidence_vectors() -> int:
+    failures = 0
+    vectors = load_json(FIXTURE_DIR / "tb5-evidence-v1.vectors.json")
+    artifacts = vectors.get("artifacts", [])
+    hostiles = vectors.get("hostile_mutations", [])
+    linkage_hostiles = vectors.get("linkage_hostile_mutations", [])
+    all_ids = [row.get("vector_id") for row in artifacts + hostiles + linkage_hostiles]
+    if vectors.get("schema") != "qw5.tb5-evidence-vectors/v1" or not ids_unique(all_ids):
+        print("FAIL TB5 evidence vectors: schema ID missing or vector IDs are not unique")
+        return 1
+    materialized: dict[str, tuple[dict[str, Any], str]] = {}
+    for row in artifacts:
+        path = FIXTURE_DIR / row["fixture"]
+        if not path.is_file() or row["schema_id"] not in SCHEMA_FILES:
+            print(f"FAIL TB5 evidence vector {row['vector_id']}: missing fixture or schema")
+            failures += 1
+            continue
+        data = load_json(path)
+        issues = validate_instance(data, row["schema_id"])
+        if issues or canonical_digest(data) != row["canonical_sha256"]:
+            print(f"FAIL TB5 evidence vector {row['vector_id']}: validation or canonical digest mismatch")
+            failures += 1
+            continue
+        for resolution in row.get("resolved_entries", []):
+            entry = next((item for item in data["entries"] if item["relative_path"] == resolution["relative_path"]), None)
+            target_path = FIXTURE_DIR / resolution["fixture"]
+            if entry is None or not target_path.is_file() or entry["sha256"] != canonical_digest(load_json(target_path)):
+                print(f"FAIL TB5 evidence vector {row['vector_id']}: index entry did not resolve to its canonical artifact digest")
+                failures += 1
+        linked_attempt = row.get("linked_attempt")
+        if linked_attempt is not None:
+            attempt = {
+                "attempt_id": linked_attempt["attempt_id"],
+                "valid": linked_attempt["valid"],
+                "invalid_reasons": linked_attempt["invalid_reasons"],
+                "synchronization": linked_attempt["synchronization"],
+            }
+            link_issues = validate_sync_reference(
+                linked_attempt["cell_id"], linked_attempt["plan_sha256"], attempt, data,
+            )
+            if link_issues:
+                print(f"FAIL TB5 evidence vector {row['vector_id']}: linked attempt did not reconcile: {[item.code for item in link_issues]}")
+                failures += 1
+        materialized[row["vector_id"]] = (data, row["schema_id"])
+    for row in hostiles:
+        base = materialized.get(row["base_vector_id"])
+        if base is None:
+            print(f"FAIL TB5 hostile vector {row['vector_id']}: unknown base vector")
+            failures += 1
+            continue
+        data = copy.deepcopy(base[0])
+        for operation in row["operations"]:
+            apply_operation(data, operation)
+        codes = {item.code for item in validate_instance(data, base[1])}
+        expected = row["expected_error"]
+        if not any(code == expected or (expected == "SCHEMA" and code.startswith("SCHEMA_")) for code in codes):
+            print(f"FAIL TB5 hostile vector {row['vector_id']}: expected {expected}; got {sorted(codes)}")
+            failures += 1
+    artifact_rows = {row["vector_id"]: row for row in artifacts}
+    for row in linkage_hostiles:
+        base = materialized.get(row["base_vector_id"])
+        base_row = artifact_rows.get(row["base_vector_id"])
+        if base is None or base_row is None or "linked_attempt" not in base_row:
+            print(f"FAIL TB5 linkage hostile {row['vector_id']}: unknown or unlinked base vector")
+            failures += 1
+            continue
+        linked_attempt = copy.deepcopy(base_row["linked_attempt"])
+        for operation in row["operations"]:
+            apply_operation(linked_attempt, operation)
+        attempt = {
+            "attempt_id": linked_attempt["attempt_id"],
+            "valid": linked_attempt["valid"],
+            "invalid_reasons": linked_attempt["invalid_reasons"],
+            "synchronization": linked_attempt["synchronization"],
+        }
+        codes = {
+            item.code for item in validate_sync_reference(
+                linked_attempt["cell_id"], linked_attempt["plan_sha256"], attempt, base[0],
+            )
+        }
+        if row["expected_error"] not in codes:
+            print(f"FAIL TB5 linkage hostile {row['vector_id']}: expected {row['expected_error']}; got {sorted(codes)}")
+            failures += 1
+    return failures
+
+
 def main() -> int:
     failures = 0
     schemas: dict[str, Any] = {}
@@ -1330,6 +2152,9 @@ def main() -> int:
             failures += len(issues)
     failures += verify_canonical_vectors()
     failures += verify_wire_vectors()
+    failures += verify_safetensors_vectors()
+    failures += verify_tb5_evidence_vectors()
+    failures += verify_generated_local_control_bundle()
     failures += verify_generated_link_summary()
     failures += verify_negative_cases()
     if failures:
@@ -1337,7 +2162,7 @@ def main() -> int:
         return 1
     valid_count = len(list(FIXTURE_DIR.glob("*.valid.json")))
     negative_count = len(load_json(FIXTURE_DIR / "negative-cases.json")["cases"])
-    print(f"validated {len(schemas)} schemas, {valid_count} committed positive fixtures, one generated 246-cell fixture, {negative_count} negative cases, and exact canonical/wire vectors")
+    print(f"validated {len(schemas)} schemas, {valid_count} committed positive fixtures, one generated 108-control bundle, one generated 246-cell evidence bundle, {negative_count} negative cases, and exact canonical/wire/TB5/SafeTensors vectors")
     return 0
 
 

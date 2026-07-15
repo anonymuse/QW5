@@ -19,7 +19,7 @@ Sol amendment PR instead of being reinterpreted in code.
 | 07 | TB5 solo-path capture | Terra / High | Owner/access gated after 06 |
 | 08 | TB5 simultaneous capture and link summary | Terra / High | Owner/access gated after 07 |
 | 09 | Immutable model acquisition decision | Sol / High | Owner decision after 08 |
-| 10 | Model-specific classification-rule freeze | Sol / High | After 09 |
+| 10 | SafeTensors parser and model-classification freeze | Sol / High | After 09 |
 | 11 | Model manifest and tensor inspector | Terra / High | After 10 |
 | 12 | Qwen3-Coder-Next manifests | Terra / High | Download/storage gated after 11 |
 | 13 | Qwen3.5-397B-A17B manifests | Terra / High | Separate download/storage gate after 12 |
@@ -79,25 +79,32 @@ is not executed in PR #3 and no kickoff prompt is part of this PR.
 ## M1-03 — TB5 harness and loopback validation
 
 - **Objective:** Implement `qw5-tb5-wire/v1`, the exact 246-cell planner, loopback
-  harness, local controls, synchronization evidence interface, raw attempt writer, and
-  result/link-summary serializers using injected transports.
+  harness, raw local controls/index, raw empirical-inclusion evidence, measurement
+  index, raw attempt writer, and result/link-summary serializers using injected
+  transports.
 - **Recommended model and reasoning:** GPT-5.6 Terra, High; concurrent I/O and failure
   retention are difficult, but framing, payload generation, plan, routes, statuses,
   and arithmetic are frozen.
 - **Owned paths:** `src/bench/tb5/`, TB5 tests/fixtures/operator dry-run docs, and
   minimal CLI/build wiring; contract files remain read-only.
-- **Frozen inputs and contracts:** ADR-0005; run-plan, route-proof, measurement, and
-  link-summary schemas; exact wire and canonical vectors; scenario maps, payloads,
-  counts, keyed order, 1 ms uncertainty, 10 ms skew upper bound, sockets, copies,
-  controls, errors, and thermal state machine.
+- **Frozen inputs and contracts:** ADRs 0005 and 0007; run-plan, route-proof, local-
+  control/index, synchronization-evidence, measurement/index, and link-summary
+  schemas; exact wire/canonical/TB5 vectors; public Network framework route procedure;
+  scenario maps, payloads, counts, keyed order, empirical 1 ms/10 ms inclusion
+  thresholds, deterministic stream stop/caps/final-frame rule, generation and
+  verification timing, application buffers, sockets, copies, errors, and thermal
+  state machine.
 - **Dependencies and merge order:** After 02; before all physical captures.
 - **Permissions or physical access:** Local loopback/injected sockets only; no remote
   nodes, route changes, or Thunderbolt claims.
 - **Acceptance and negative tests:** Rebuild all exact vectors; generate 246 unique
   cells; partial reads/writes and backpressure work. Reject bad handshake/header/ack,
   reserved bits, corrupt/truncated/extra bytes, identity/route mismatch, sequence
-  regression, byte/checksum/copy/count mismatch, unbounded sync, unretained retry,
-  cross-clock latency, private address, and summary non-reconciliation.
+  regression, byte/checksum/copy/count mismatch, malformed or insufficient empirical
+  evidence, unsupported timing claim, unretained retry, cap-shortened sample, partial
+  final frame, cross-clock latency, private address, dirty physical identity,
+  incomplete indexes, all-complete/zero-sample summary, raw-summary disagreement, and
+  digest non-resolution.
 - **Durable artifacts:** Harness, planner, control runner, injected-failure fixtures,
   serializers, loopback report, and provenance.
 - **Explicit non-goals:** Cluster execution, transport selection, production runtime,
@@ -155,14 +162,19 @@ is not executed in PR #3 and no kickoff prompt is part of this PR.
 - **Owned paths:** `artifacts/m1/tb5/preflight/`, control artifacts/index, and
   provenance.
 - **Frozen inputs and contracts:** M1-03 binary, M1-04 inventories, M1-05 baselines,
-  route-proof schema, local-control matrix, canonical plan template, public denylist.
+  route-proof and local-control/index schemas, exact public Network framework
+  interface/local-endpoint binding and current-path/peer-handshake checks, canonical
+  plan template, public denylist.
 - **Dependencies and merge order:** After 05; before solo capture.
 - **Permissions or physical access:** Owner-approved exclusive access and already
   configured routes; no route, address, socket-default, or OS mutation.
-- **Acceptance and negative tests:** Six routes validate as direct/no relay; every
-  node/payload/control cell is retained with thermal/errors. Reject missing direction,
-  relay or non-test path, raw address, binary mismatch, silent control subtraction,
-  pooled regimes, or control result relabeled as link evidence.
+- **Acceptance and negative tests:** Six routes validate required interface/local
+  endpoint, ready/current path, expected interface use, public-safe endpoint match,
+  no path update, peer handshake, and no relay; all 108 node/payload/control artifacts
+  resolve through the canonical index. Reject missing direction/cell, relay or non-
+  test path, path update, raw interface/address, digest or binary mismatch, dirty
+  producer, silent control subtraction, pooled regimes, or control relabeled as link
+  evidence.
 - **Durable artifacts:** Route proof, local-control raw index/summary, limitations,
   plan inputs, and provenance.
 - **Explicit non-goals:** Network throughput cells, tuning, causal hardware claims, or
@@ -183,8 +195,10 @@ is not executed in PR #3 and no kickoff prompt is part of this PR.
 - **Acceptance and negative tests:** Every solo cell has ten valid attempts or a
   retained terminal status; round-trip latency stays round trip; bytes, sequences,
   checksums, copies, errors, exclusions, sockets, and thermal regimes reconcile.
-  Reject missing cell, best-run headline, silent retry, changed plan, mixed regime,
-  relay, or one-way latency.
+  Stream source stopping, 3-second target, 30-second/32-GiB caps, final-frame
+  announcement, generation/verification timing, and peak application buffers match
+  the plan. Reject missing cell, cap-shortened valid sample, partial final frame,
+  best-run headline, silent retry, changed plan, mixed regime, relay, or one-way latency.
 - **Durable artifacts:** Content-addressed solo attempts, index, summary, failures,
   and provenance.
 - **Explicit non-goals:** Simultaneous traffic, placement interpretation, inference,
@@ -194,21 +208,26 @@ is not executed in PR #3 and no kickoff prompt is part of this PR.
 
 - **Objective:** Execute duplex, fan-in/out, cycle, and all-directed cells and publish
   the complete 246-cell link summary with per-flow contention visible.
-- **Recommended model and reasoning:** GPT-5.6 Terra, High; synchronization evidence
-  and complete failure preservation are the bounded hard parts.
+- **Recommended model and reasoning:** GPT-5.6 Terra, High; empirical-inclusion
+  evidence, content-addressed reconciliation, and failure preservation are bounded but
+  consequential.
 - **Owned paths:** `artifacts/m1/tb5/simultaneous/`, final link summary/index, and
   provenance.
 - **Frozen inputs and contracts:** Accepted solo index, unchanged harness/plan/route/
-  inventory/control digests, exact scenario sets, 1 ms uncertainty and 10 ms upper
-  skew bounds, status rules, and summary schema.
+  inventory/control digests, exact scenario sets, raw empirical evidence schema,
+  preregistered 1 ms control-RTT and 10 ms coordinator-observed thresholds, status
+  rules, measurement index, and summary reconciliation contract.
 - **Dependencies and merge order:** After 07; any input change creates a new plan.
 - **Permissions or physical access:** Same owner-approved exclusive access and volume
   authorization as 07.
 - **Acceptance and negative tests:** Every cell has a terminal artifact; each valid
-  simultaneous attempt has adequate sync evidence; 246 IDs/indexes and status counts
-  reconcile. Reject a valid above-bound attempt, unavailable sync not marked
-  undetermined, omitted slow flow, coordinator relay, missing warmup/invalid attempt,
-  pooled regimes, or aggregate hiding per-flow values.
+  simultaneous attempt has qualifying raw empirical evidence; all 246 paths/digests
+  resolve and identity/status/metrics/exclusions/errors/thermal fields reconcile.
+  Complete stream cells have ten flow/aggregate throughput samples; complete round-
+  trip cells have exactly 1,000 or 100 latency samples. Reject unsupported timing
+  claims, invalid evidence credited, missing evidence not undetermined, zero-sample
+  complete cells, raw-summary disagreement, omitted slow flow, relay, missing warmup/
+  invalid attempt, pooled regimes, or aggregate hiding per-flow values.
 - **Durable artifacts:** Simultaneous raw artifacts, 246-cell link summary, contention
   table, failed/undetermined cells, and provenance.
 - **Explicit non-goals:** Causal controller-topology inference, scheduler design,
@@ -236,25 +255,31 @@ is not executed in PR #3 and no kickoff prompt is part of this PR.
   listings with frozen expected path sets, and decision record.
 - **Explicit non-goals:** Weights, parsing, conversion, quantization, or feasibility.
 
-## M1-10 — Model-specific classification-rule freeze
+## M1-10 — SafeTensors parser and model-classification freeze
 
-- **Objective:** Freeze versioned classification rules and hostile miniature examples
-  for both exact revisions before implementing the generic inspector.
+- **Objective:** Accept the immutable SafeTensors parser profile and freeze versioned
+  classification rules plus hostile miniature examples for both exact revisions
+  before implementing the generic inspector.
 - **Recommended model and reasoning:** GPT-5.6 Sol, High; mapping names/configuration
   to language, vision, hybrid layer, router, expert, state, and head semantics is a
   model-specific interpretation decision.
-- **Owned paths:** `artifacts/m1/models/classification-rules/`, rule schemas/fixtures,
-  supporting contract amendment if required, and provenance.
-- **Frozen inputs and contracts:** M1-09 revisions/file plan, official configuration
+- **Owned paths:** accepted parser-profile decision record,
+  `artifacts/m1/models/classification-rules/`, rule schemas/fixtures, supporting
+  contract amendment if required, and provenance.
+- **Frozen inputs and contracts:** M1-09 revisions/file plan, immutable SafeTensors
+  format commit, parser-profile schema/limits/dtypes/vectors, official configuration
   metadata, tensor v1 vocabulary, complete-vs-subset boundary.
 - **Dependencies and merge order:** After 09; before 11.
 - **Permissions or physical access:** Metadata-only network access; no weights or
   model code execution. Owner decides any semantic ambiguity affecting model scope.
-- **Acceptance and negative tests:** Rules specify precedence, captures, expected
-  classes, revision/config digest, unresolved behavior, positive/negative examples.
-  Reject ambiguous overlap, silent fallback, unknown name forced classified, or
-  vision exclusion.
-- **Durable artifacts:** Two rule sets, schema, fixtures, coverage report, provenance.
+- **Acceptance and negative tests:** Parser profile retains scalar `[]`, strict UTF-8,
+  duplicate-member rejection, limits, checked arithmetic/offsets, and exact dtype set;
+  rules specify precedence, captures, expected classes, revision/config digest,
+  unresolved behavior, and examples. Reject mutable format reference, duplicate JSON
+  member, scalar byte/offset mismatch, unsupported dtype, overflow, ambiguous rule
+  overlap, silent fallback, unknown name forced classified, or vision exclusion.
+- **Durable artifacts:** Accepted parser profile, two rule sets, schema, fixtures,
+  coverage report, provenance.
 - **Explicit non-goals:** Parser implementation, weight download, placement, or
   changing the model sequence.
 
@@ -267,8 +292,8 @@ is not executed in PR #3 and no kickoff prompt is part of this PR.
 - **Owned paths:** `tools/model_inventory/`, miniature fixtures/tests, reproducibility
   docs, and provenance; schemas/rules are read-only.
 - **Frozen inputs and contracts:** Model/tensor v1, M1-09 acquisition plan and expected
-  path sets, M1-10 rules, canonical profile, pinned SafeTensors specification, semantic
-  validator behavior.
+  path sets, M1-10 accepted parser profile/rules, canonical profile, immutable
+  SafeTensors format commit, exact raw vectors, and semantic validator behavior.
 - **Dependencies and merge order:** After 10; before real artifacts.
 - **Permissions or physical access:** None; generated miniature files only, no large
   downloads, remote code, or unsafe deserialization.
@@ -329,8 +354,10 @@ is not executed in PR #3 and no kickoff prompt is part of this PR.
 - **Recommended model and reasoning:** GPT-5.6 Sol, Extra High; these cross-cutting
   choices determine what calculations mean and cannot be delegated to an analyzer.
 - **Owned paths:** schemas/fixtures and accepted artifacts for
-  `quantization-layout/v1`, `formula-set/v1`, `text-subset-dependency/v1`, gate rules,
-  candidate placement sets, one ADR if direction changes, and provenance.
+  `quantization-layout/v1`, `formula-set/v1`, `text-subset-dependency/v1`,
+  `placement-gate-rule-set/v1`, `placement-candidate-set/v1`,
+  `placement-solver-objective/v1`, `reserve-headroom-policy/v1`, one ADR if direction
+  changes, and provenance.
 - **Frozen inputs and contracts:** M1-05 baselines, M1-08 link summary, M1-12/13 exact
   tensors/configs, placement v1, evidence labels, owner-approved target reserve and
   candidate list.
@@ -340,8 +367,10 @@ is not executed in PR #3 and no kickoff prompt is part of this PR.
   objective, text-subset rule, and any material model/runtime boundary change.
 - **Acceptance and negative tests:** Every formula has checked units/rounding and
   source fields; layouts reconcile metadata/padding/exceptions; placements enumerate
-  allowed node sets; gates are exhaustive/disjoint; subset exclusions have dependency
-  proof or remain unresolved. Reject bit labels alone, zero scratch by omission,
+  allowed node sets; applicability plus passed/failed/unresolved/not-applicable gates
+  are exhaustive/disjoint; subset exclusions have dependency proof or remain
+  unresolved. Reject missing lineage, vacuous not-applicable gates, network traffic
+  without link evidence, bit labels alone, zero scratch by omission,
   result-tuned reserve, expert-count-as-packets, implicit vision removal, unknown
   tensor class, or quality inferred from size.
 - **Durable artifacts:** Accepted schemas, positive/hostile fixtures, formula/layout/

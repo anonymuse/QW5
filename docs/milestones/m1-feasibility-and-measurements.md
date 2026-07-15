@@ -17,12 +17,13 @@ go/no-go decisions for later work, not inference or a cluster capability claim.
 All criteria must hold before physical or model-artifact execution begins:
 
 1. This M0 contract-completion and M1 planning pull request is accepted and merged,
-   including ADRs 0004 through 0006, exact-byte vectors, v1 contracts, and the
+   including ADRs 0004 through 0007, exact-byte vectors, v1 contracts, and the
    repository semantic validator.
 2. The active task is created from then-current `main` with disjoint owned paths,
    frozen inputs, acceptance tests, and a task-owned provenance record.
 3. CI passes draft 2020-12 meta-validation, positive fixtures, semantic invariants,
-   hostile mutations, and exact canonical/wire vectors.
+   hostile mutations, the generated 108-control and 246-cell evidence bundles, and
+   exact canonical/wire/TB5/SafeTensors vectors.
 4. The project owner separately approves any remote-node access, model download,
    external scratch storage, or costly benchmark required by that task.
 5. Stable public aliases A, B, and C are mapped privately to the intended machines;
@@ -31,8 +32,9 @@ All criteria must hold before physical or model-artifact execution begins:
 7. Any selected model revision is a full immutable commit. A change from the source
    revisions reviewed by ADR-0001 receives explicit Sol review and owner approval.
 8. Before physical cluster work, the owner approves the memory-baseline plan and the
-   TB5 plan's seed/order, socket request, synchronization and thermal thresholds,
-   local controls, expected data volume, exclusive window, and access method.
+   TB5 plan's seed/order, socket request, empirical-inclusion and thermal thresholds,
+   local controls, stream duration/byte caps, expected data volume, exclusive window,
+   and access method.
 9. Before placement results are consumed, the owner approves the safety-reserve and
    headroom policy, concrete quantization candidates, model-specific formulas/gates,
    and any Qwen3.5 text-subset dependency rule.
@@ -50,15 +52,18 @@ substitute a declared or estimated value.
    route-verification artifact used by the benchmark, without network identifiers.
 4. **Thunderbolt application-path evidence:** owner-approved run plan, exact wire
    vectors, three-node local controls, all six directed solo paths and every required
-   simultaneous scenario, with raw attempts and a 246-cell summary.
+   simultaneous scenario, with raw attempts, local-control and measurement indexes,
+   and a raw-reconciled 246-cell summary.
 5. **Model artifact manifests:** complete immutable file identities for both selected
    model revisions, including canonical revision listings, frozen expected paths,
    tokenizer, configuration, templates, licenses, weight indexes, and weight files
    consumed by analysis.
-6. **Tensor inventories:** deterministic tensor-level metadata and revision-specific
-   classification rules, with unresolved classifications explicit.
-7. **Pre-analysis decisions:** accepted quantization layouts, formula set, safety
-   reserve, placement candidates, model gates, and any text-subset dependency proof.
+6. **Tensor inventories:** an accepted SafeTensors parser profile, deterministic
+   tensor-level metadata, and revision-specific classification rules, with unresolved
+   classifications explicit.
+7. **Pre-analysis decisions:** accepted quantization layouts, formula set, gate-rule
+   set, safety-reserve/headroom policy, complete placement-candidate set, solver
+   objective, and any text-subset dependency proof.
 8. **Placement analyses:** per-node budgets and assignments for both models across the
    declared workload matrix, preserving assumptions and sensitivity ranges.
 9. **Gate report:** one decision per model and placement scenario, limitations,
@@ -102,24 +107,32 @@ Every one of the 246 cells has the planned valid sample count or a preserved fai
 aborted, or undetermined report. Route proof, local controls, byte/sequence/checksum
 reconciliation, requested/effective sockets, endpoint timing, copy evidence, errors,
 and thermal conditions are present. Seed-derived schedule indexes reconcile for every
-cell. Simultaneous evidence includes no more than 1 ms synchronization uncertainty
-and a skew upper bound no more than 10 ms. A failed cell is not silently dropped.
+cell. Every summary cell resolves through the frozen measurement index and reconciles
+identity, status, metrics, exclusions, errors, and thermal regimes to raw evidence.
+Simultaneous attempts use the ADR-0007 empirical rule: maximum pre-attempt control RTT
+at most 1 ms and coordinator-observed score at most 10 ms. The score is not an
+actual-start or one-way-timing result. Every included attempt resolves its raw
+synchronization digest and projection. Stream targets, caps, and application-buffer
+totals reconcile. A failed cell is not silently dropped.
 
 ### G3 — Artifact and tensor completeness
 
 Both models have immutable revisions, two matching hash passes for every consumed
 file, canonical revision-listing digests, exact expected-path/file-table equality,
 derived completeness, revision-specific classification rules, and deterministic tensor
-inventories. File, layer, expert, dtype, class, and storage totals reconcile.
-Duplicate names, reversed/out-of-range/overlapping/holed storage, unknown dtypes, or
-missing files fail the gate.
+inventories. The parser profile is pinned to an immutable upstream format reference;
+scalar `shape: []`, safety limits, exact supported dtypes, strict UTF-8, duplicate-
+member rejection, and checked offsets/arithmetic are tested. File, layer, expert,
+dtype, class, and storage totals reconcile. Duplicate names, reversed/out-of-range/
+overlapping/holed storage, unknown dtypes, or missing files fail the gate.
 
 ### G4 — Representational-size gate
 
 Each candidate quantization is a Sol-approved concrete layout whose weight, metadata,
 padding, alignment, and higher-precision exception bytes reconcile. Formula-set,
-reserve, model-gate, and text-subset inputs are immutable and accepted before analyzer
-implementation. A parameter-count floor cannot pass this gate.
+reserve/headroom, gate-rule, candidate-set, solver-objective, and applicable text-
+subset inputs are immutable and accepted before analyzer implementation. A parameter-
+count floor cannot pass this gate.
 
 ### G5 — Per-node placement gate
 
@@ -132,7 +145,6 @@ nonnegative on every node under the declared rule. Aggregate-memory fit alone fa
 For each model, Sol issues one scoped result:
 
 - `GO`: evidence supports the named next task only;
-- `CONDITIONAL_GO`: named evidence remains before the next task can complete;
 - `NO_GO`: the proposed placement fails a stated constraint; or
 - `UNDETERMINED`: required evidence is unavailable or contradictory.
 

@@ -9,6 +9,8 @@ consumes. They cover `Qwen/Qwen3-Coder-Next` and
 The schemas are
 [`model-artifact-manifest.schema.json`](../../schemas/v1/model-artifact-manifest.schema.json)
 and [`tensor-inventory.schema.json`](../../schemas/v1/tensor-inventory.schema.json).
+SafeTensors parsing is further frozen by
+[`safetensors-parser-profile.schema.json`](../../schemas/v1/safetensors-parser-profile.schema.json).
 Both use [`qw5-json-c14n-v1`](canonical-json-v1.md) for artifact identity and require
 schema plus repository semantic validation.
 
@@ -75,12 +77,41 @@ tensor contains:
 - classification status and rule ID so a naming heuristic is never presented as an
   upstream semantic fact.
 
-Integer element counts and byte sizes are recomputed with checked arithmetic. Source
+An empty shape `[]` is a scalar: its element count is one and its stored bytes equal
+one element of the declared dtype. A dimension containing zero is an empty tensor and
+has zero elements; it is not a scalar. Integer element counts and byte sizes are
+recomputed with checked arithmetic. Source
 format ranges must be within the file and obey the format's overlap, hole, alignment,
 and endianness rules. For SafeTensors, M1 follows the documented header, dtype, shape,
 and data-offset semantics and pins the parser dependency or clean-room parser revision.
-The [SafeTensors format description](https://github.com/huggingface/safetensors/blob/main/README.md#format)
+The [SafeTensors format description](https://github.com/safetensors/safetensors/blob/6eb4dc9a28ebce297606e0f4836bbf28839cacef/README.md#format)
 is a reference, not source donated to QW5.
+
+## SafeTensors parser profile
+
+The Sol-owned v1 profile precedes any Terra parser task. It pins upstream commit
+`6eb4dc9a28ebce297606e0f4836bbf28839cacef` and accepts exactly `BOOL`, `U8`, `I8`,
+`U16`, `I16`, `F16`, `BF16`, `U32`, `I32`, `F32`, `U64`, `I64`, and `F64`.
+Sub-byte and FP8 encodings are rejected in v1 rather than guessed.
+
+QW5's safety limits are contract policy, not claims about upstream SafeTensors:
+
+- maximum header: 16 MiB;
+- maximum tensor records: 1,000,000;
+- maximum rank: 16;
+- maximum dimension: signed 64-bit maximum; and
+- maximum shape product/element count: unsigned 64-bit maximum, with checked
+  multiplication and checked dtype-byte multiplication.
+
+The parser reads the little-endian u64 header length, rejects a truncated/oversized
+header, requires strict UTF-8 and an object beginning with `{`, permits only ASCII
+space padding, and rejects duplicate JSON members at every nesting level. Every tensor
+record has only `dtype`, `shape`, and `data_offsets`; offsets must be ordered, in
+bounds, contiguous, non-overlapping, and collectively cover the data buffer. Dtype,
+shape, byte length, and range length reconcile exactly. The raw
+[`safetensors-parser-v1.vectors.json`](../../fixtures/contracts/v1/safetensors-parser-v1.vectors.json)
+includes a positive scalar plus duplicate-member, scalar-byte, unsupported-dtype, and
+header-limit hostiles.
 
 Source files record container, header, and data-section bytes. Totals are emitted by
 file, component, semantic class, normalized dtype, layer, and expert class. Every
@@ -125,8 +156,9 @@ identified as upstream material; they are not described as AI-authored QW5 conte
 
 ## Model-specific requirements
 
-Before the generic inspector becomes a Terra task, a separate Sol task freezes one
-versioned classification-rule artifact per immutable model revision. Each rule names
+Before the generic inspector becomes a Terra task, a separate Sol task accepts the
+parser profile and freezes one versioned classification-rule artifact per immutable
+model revision. Each rule names
 the exact configuration field or tensor-name pattern, output component/semantic
 class, permitted layer/expert captures, precedence, and negative examples. Rules must
 be exhaustive or leave tensors explicitly `unclassified`; the inspector cannot invent
@@ -152,7 +184,9 @@ names.
 Tests must reject a mutable revision, truncated hash, absolute path, missing consumed
 file, hash/size mismatch on either pass, duplicate file path, false completeness,
 duplicate tensor name, unknown dtype, shape/element/byte mismatch, reversed,
-out-of-range, overlapping, or holed storage, missing quantization metadata,
+out-of-range, overlapping, or holed storage, duplicate SafeTensors JSON members,
+unsupported dtype, oversized or malformed header, scalar byte/range mismatch, checked-
+arithmetic overflow, missing quantization metadata,
 non-reconciling file/layer/expert totals, unclassified tensor used by a class-dependent
 placement, excluded vision tensor without a dependency rule, and private download or
 machine data. Hostile miniature vectors exercise these invariants without model

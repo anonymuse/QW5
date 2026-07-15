@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/anonymuse/QW5/schemas/v1/tb5-local-control.schema.json",
+  "title": "QW5 Thunderbolt 5 local control measurement v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "artifact_role", "evidence_class", "created_at", "producer",
+    "plan_sha256", "control_id", "node", "payload_bytes", "status", "buffer_policy",
+    "warmup_elapsed_ns", "recorded_elapsed_ns", "errors"
+  ],
+  "properties": {
+    "schema": { "const": "qw5.tb5-local-control/v1" },
+    "artifact_role": { "enum": ["local_control", "schema_fixture"] },
+    "evidence_class": { "enum": ["MEASURED", "SIMULATED"] },
+    "created_at": { "$ref": "#/$defs/timestamp" },
+    "producer": { "$ref": "#/$defs/producer" },
+    "plan_sha256": { "$ref": "#/$defs/sha256" },
+    "control_id": { "enum": ["buffer_copy", "framing", "sha256"] },
+    "node": { "enum": ["A", "B", "C"] },
+    "payload_bytes": { "enum": [64, 256, 1024, 4096, 16384, 65536, 262144, 1048576, 4194304, 16777216, 67108864, 268435456] },
+    "status": { "enum": ["COMPLETE", "FAILED", "ABORTED", "UNDETERMINED"] },
+    "buffer_policy": {
+      "type": "object", "additionalProperties": false,
+      "required": ["preallocated_input_buffers", "preallocated_output_buffers", "peak_application_buffer_bytes", "timing_scope"],
+      "properties": {
+        "preallocated_input_buffers": { "const": 1 },
+        "preallocated_output_buffers": { "const": 1 },
+        "peak_application_buffer_bytes": { "type": "integer", "minimum": 1 },
+        "timing_scope": { "enum": ["copy_only", "frame_and_verify", "generate_and_sha256"] }
+      }
+    },
+    "warmup_elapsed_ns": { "type": "array", "maxItems": 3, "items": { "type": "integer", "minimum": 1 } },
+    "recorded_elapsed_ns": { "type": "array", "maxItems": 10, "items": { "type": "integer", "minimum": 1 } },
+    "errors": { "type": "array", "items": { "$ref": "#/$defs/error" } }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "artifact_role": { "const": "local_control" } }, "required": ["artifact_role"] },
+      "then": { "properties": { "evidence_class": { "const": "MEASURED" } } },
+      "else": { "properties": { "evidence_class": { "const": "SIMULATED" } } }
+    },
+    {
+      "if": { "properties": { "status": { "const": "COMPLETE" } }, "required": ["status"] },
+      "then": {
+        "properties": {
+          "warmup_elapsed_ns": { "minItems": 3, "maxItems": 3 },
+          "recorded_elapsed_ns": { "minItems": 10, "maxItems": 10 },
+          "errors": { "maxItems": 0 }
+        }
+      },
+      "else": { "properties": { "errors": { "minItems": 1 } } }
+    }
+  ],
+  "$defs": {
+    "timestamp": { "type": "string", "format": "date-time", "pattern": "Z$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "git_commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "producer": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "version", "executable_sha256", "qw5_commit", "dirty", "parameters"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "executable_sha256": { "$ref": "#/$defs/sha256" },
+        "qw5_commit": { "$ref": "#/$defs/git_commit" },
+        "dirty": { "type": "boolean" },
+        "parameters": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "error": {
+      "type": "object", "additionalProperties": false,
+      "required": ["code", "message"],
+      "properties": {
+        "code": { "type": "string", "pattern": "^[A-Z0-9_]+$" },
+        "message": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

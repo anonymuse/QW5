@@ -21,13 +21,14 @@
     "identity": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["qw5_commit", "dirty", "harness_sha256", "route_proof_sha256", "inventory_sha256"],
+      "required": ["qw5_commit", "dirty", "harness_sha256", "route_proof_sha256", "inventory_sha256", "local_control_index_sha256"],
       "properties": {
         "qw5_commit": { "$ref": "#/$defs/git_commit" },
         "dirty": { "type": "boolean" },
         "harness_sha256": { "$ref": "#/$defs/sha256" },
         "route_proof_sha256": { "$ref": "#/$defs/sha256" },
-        "inventory_sha256": { "$ref": "#/$defs/node_digests" }
+        "inventory_sha256": { "$ref": "#/$defs/node_digests" },
+        "local_control_index_sha256": { "$ref": "#/$defs/sha256" }
       }
     },
     "seed": { "type": "integer", "minimum": 0, "maximum": 18446744073709551615 },
@@ -68,39 +69,67 @@
     "stream_policy": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["warmup_repetitions", "warmup_minimum_duration_ns", "valid_repetitions", "maximum_attempts", "sample_minimum_duration_ns", "minimum_messages_per_flow"],
+      "required": [
+        "warmup_repetitions", "warmup_minimum_duration_ns", "valid_repetitions",
+        "maximum_attempts", "sample_target_duration_ns", "maximum_duration_ns",
+        "maximum_payload_bytes_per_flow", "minimum_messages_per_flow",
+        "controlling_endpoint", "stop_rule", "timeout_outcome", "final_partial_frame_outcome",
+        "payload_generation_timing", "payload_verification_timing", "buffer_policy"
+      ],
       "properties": {
         "warmup_repetitions": { "const": 3 },
         "warmup_minimum_duration_ns": { "const": 2000000000 },
         "valid_repetitions": { "const": 10 },
         "maximum_attempts": { "const": 12 },
-        "sample_minimum_duration_ns": { "const": 3000000000 },
-        "minimum_messages_per_flow": { "const": 1 }
+        "sample_target_duration_ns": { "const": 3000000000 },
+        "maximum_duration_ns": { "const": 30000000000 },
+        "maximum_payload_bytes_per_flow": { "const": 34359738368 },
+        "minimum_messages_per_flow": { "const": 1 },
+        "controlling_endpoint": { "const": "source" },
+        "stop_rule": { "const": "first_complete_frame_at_or_after_target_before_either_cap" },
+        "timeout_outcome": { "const": "invalid_attempt_retained" },
+        "final_partial_frame_outcome": { "const": "invalid_attempt_retained" },
+        "payload_generation_timing": { "const": "inside_retained_stream_interval" },
+        "payload_verification_timing": { "const": "inside_receiver_retained_interval" },
+        "buffer_policy": { "const": "one_preallocated_send_and_receive_payload_buffer_per_active_flow" }
       }
     },
     "round_trip_policy": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["small_payload_max_bytes", "small_warmup_exchanges", "small_recorded_exchanges", "large_payload_bytes", "large_warmup_exchanges", "large_recorded_exchanges"],
+      "required": [
+        "small_payload_max_bytes", "small_warmup_exchanges", "small_recorded_exchanges",
+        "large_payload_bytes", "large_warmup_exchanges", "large_recorded_exchanges",
+        "payload_generation_timing", "payload_verification_timing", "buffer_policy"
+      ],
       "properties": {
         "small_payload_max_bytes": { "const": 262144 },
         "small_warmup_exchanges": { "const": 100 },
         "small_recorded_exchanges": { "const": 1000 },
         "large_payload_bytes": { "const": 4194304 },
         "large_warmup_exchanges": { "const": 20 },
-        "large_recorded_exchanges": { "const": 100 }
+        "large_recorded_exchanges": { "const": 100 },
+        "payload_generation_timing": { "const": "before_each_exchange_timer" },
+        "payload_verification_timing": { "const": "inside_exchange_timer_before_ack" },
+        "buffer_policy": { "const": "one_preallocated_send_and_receive_payload_buffer_per_active_flow" }
       }
     },
     "synchronization": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["start_skew_limit_ns", "maximum_uncertainty_ns", "accepted_methods", "insufficient_evidence_outcome"],
+      "required": [
+        "maximum_pre_attempt_control_rtt_ns", "maximum_coordinator_observed_start_window_ns",
+        "pre_attempt_control_rounds_per_participant", "accepted_methods",
+        "interpretation", "insufficient_evidence_outcome"
+      ],
       "properties": {
-        "start_skew_limit_ns": { "const": 10000000 },
-        "maximum_uncertainty_ns": { "const": 1000000 },
+        "maximum_pre_attempt_control_rtt_ns": { "const": 1000000 },
+        "maximum_coordinator_observed_start_window_ns": { "const": 10000000 },
+        "pre_attempt_control_rounds_per_participant": { "const": 100 },
         "accepted_methods": {
-          "const": ["coordinator_receipt_surrogate"]
+          "const": ["coordinator_observed_window_v1"]
         },
+        "interpretation": { "const": "empirical_inclusion_score_not_clock_bound_or_start_skew_proof" },
         "insufficient_evidence_outcome": { "const": "UNDETERMINED" }
       }
     },
@@ -135,8 +164,10 @@
     "local_controls": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["nodes", "payload_bytes", "warmup_repetitions", "recorded_repetitions", "controls", "subtraction_policy"],
+      "required": ["schema", "index_schema", "nodes", "payload_bytes", "warmup_repetitions", "recorded_repetitions", "controls", "subtraction_policy"],
       "properties": {
+        "schema": { "const": "qw5.tb5-local-control/v1" },
+        "index_schema": { "const": "qw5.tb5-local-control-index/v1" },
         "nodes": { "const": ["A", "B", "C"] },
         "payload_bytes": {
           "const": [64, 256, 1024, 4096, 16384, 65536, 262144, 1048576, 4194304, 16777216, 67108864, 268435456]

@@ -1,0 +1,21 @@
+{
+  "schema": "qw5.tb5-local-control-index/v1",
+  "artifact_role": "schema_fixture",
+  "evidence_class": "SIMULATED",
+  "created_at": "2000-01-01T00:00:01Z",
+  "producer": {
+    "name": "qw5-schema-fixture", "version": "1",
+    "executable_sha256": "2020202020202020202020202020202020202020202020202020202020202020",
+    "qw5_commit": "2020202020202020202020202020202020202020", "dirty": false,
+    "parameters": ["--fixture"]
+  },
+  "plan_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+  "canonical_profile": "qw5-canonical-json-v1",
+  "entries": [
+    {
+      "control_id": "buffer_copy", "node": "A", "payload_bytes": 64,
+      "relative_path": "controls/A/buffer_copy/64.json",
+      "sha256": "8ae517472ba69cfd6f3bde0e6fa75628fca5f449692ca2e362d0efcffbcf0145"
+    }
+  ]
+}

@@ -5,8 +5,8 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "schema", "artifact_role", "evidence_class", "run_id", "cell_id", "created_at",
-    "identity", "plan_seed", "schedule_index", "scenario", "payload_bytes", "mode",
+    "schema", "artifact_role", "evidence_class", "run_id", "cell_id", "created_at", "producer",
+    "identity", "plan_seed", "schedule_index", "scenario", "payload_bytes", "mode", "application_buffers",
     "framing", "socket_settings", "attempts", "summary", "exclusions", "errors"
   ],
   "properties": {
@@ -16,17 +16,19 @@
     "run_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9.-]*$" },
     "cell_id": { "type": "string", "pattern": "^(stream|round-trip):[a-z0-9-]+:[0-9]+$" },
     "created_at": { "$ref": "#/$defs/timestamp" },
+    "producer": { "$ref": "#/$defs/producer" },
     "identity": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["qw5_commit", "dirty", "plan_sha256", "harness_sha256", "route_proof_sha256", "inventory_sha256"],
+      "required": ["qw5_commit", "dirty", "plan_sha256", "harness_sha256", "route_proof_sha256", "inventory_sha256", "local_control_index_sha256"],
       "properties": {
         "qw5_commit": { "$ref": "#/$defs/git_commit" },
         "dirty": { "type": "boolean" },
         "plan_sha256": { "$ref": "#/$defs/sha256" },
         "harness_sha256": { "$ref": "#/$defs/sha256" },
         "route_proof_sha256": { "$ref": "#/$defs/sha256" },
-        "inventory_sha256": { "$ref": "#/$defs/node_digests" }
+        "inventory_sha256": { "$ref": "#/$defs/node_digests" },
+        "local_control_index_sha256": { "$ref": "#/$defs/sha256" }
       }
     },
     "plan_seed": { "type": "integer", "minimum": 0, "maximum": 18446744073709551615 },
@@ -36,6 +38,21 @@
       "enum": [64, 256, 1024, 4096, 16384, 65536, 262144, 1048576, 4194304, 16777216, 67108864, 268435456]
     },
     "mode": { "enum": ["stream", "round_trip"] },
+    "application_buffers": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "send_payload_buffers_per_flow", "receive_payload_buffers_per_flow",
+        "bytes_per_buffer", "active_flow_count", "peak_application_payload_buffer_bytes"
+      ],
+      "properties": {
+        "send_payload_buffers_per_flow": { "const": 1 },
+        "receive_payload_buffers_per_flow": { "const": 1 },
+        "bytes_per_buffer": { "type": "integer", "minimum": 1 },
+        "active_flow_count": { "type": "integer", "minimum": 1, "maximum": 6 },
+        "peak_application_payload_buffer_bytes": { "type": "integer", "minimum": 1 }
+      }
+    },
     "framing": {
       "type": "object",
       "additionalProperties": false,
@@ -82,6 +99,18 @@
     "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
     "git_commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
     "node": { "enum": ["A", "B", "C"] },
+    "producer": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "version", "executable_sha256", "qw5_commit", "dirty", "parameters"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "executable_sha256": { "$ref": "#/$defs/sha256" },
+        "qw5_commit": { "$ref": "#/$defs/git_commit" },
+        "dirty": { "type": "boolean" },
+        "parameters": { "type": "array", "items": { "type": "string" } }
+      }
+    },
     "error": {
       "type": "object",
       "additionalProperties": false,
@@ -115,7 +144,7 @@
     "scenario": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["scenario_id", "flows", "start_skew_limit_ns", "maximum_sync_uncertainty_ns"],
+      "required": ["scenario_id", "flows", "maximum_pre_attempt_control_rtt_ns", "maximum_coordinator_observed_start_window_ns"],
       "properties": {
         "scenario_id": {
           "enum": [
@@ -132,8 +161,8 @@
           "uniqueItems": true,
           "items": { "$ref": "#/$defs/flow" }
         },
-        "start_skew_limit_ns": { "const": 10000000 },
-        "maximum_sync_uncertainty_ns": { "const": 1000000 }
+        "maximum_pre_attempt_control_rtt_ns": { "const": 1000000 },
+        "maximum_coordinator_observed_start_window_ns": { "const": 10000000 }
       }
     },
     "observation_integer": {
@@ -196,21 +225,20 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "status", "method", "calibration_rounds", "coordinator_receipt_skew_ns",
-        "maximum_control_rtt_ns", "maximum_worker_start_ack_ns",
-        "timer_resolution_allowance_ns", "uncertainty_ns",
-        "start_skew_upper_bound_ns", "evidence_sha256"
+        "status", "method", "calibration_rounds", "coordinator_receipt_spread_ns",
+        "pre_attempt_control_rtt_max_ns", "worker_start_to_ack_max_ns",
+        "timer_resolution_allowance_ns", "coordinator_observed_start_window_ns",
+        "evidence_sha256"
       ],
       "properties": {
         "status": { "enum": ["available", "not_required", "unavailable", "error"] },
-        "method": { "enum": ["coordinator_receipt_surrogate", "not_required", "unavailable"] },
+        "method": { "enum": ["coordinator_observed_window_v1", "not_required", "unavailable"] },
         "calibration_rounds": { "type": ["integer", "null"], "minimum": 1 },
-        "coordinator_receipt_skew_ns": { "type": ["integer", "null"], "minimum": 0 },
-        "maximum_control_rtt_ns": { "type": ["integer", "null"], "minimum": 0 },
-        "maximum_worker_start_ack_ns": { "type": ["integer", "null"], "minimum": 0 },
+        "coordinator_receipt_spread_ns": { "type": ["integer", "null"], "minimum": 0 },
+        "pre_attempt_control_rtt_max_ns": { "type": ["integer", "null"], "minimum": 0 },
+        "worker_start_to_ack_max_ns": { "type": ["integer", "null"], "minimum": 0 },
         "timer_resolution_allowance_ns": { "type": ["integer", "null"], "minimum": 0 },
-        "uncertainty_ns": { "type": ["integer", "null"], "minimum": 0 },
-        "start_skew_upper_bound_ns": { "type": ["integer", "null"], "minimum": 0 },
+        "coordinator_observed_start_window_ns": { "type": ["integer", "null"], "minimum": 0 },
         "evidence_sha256": { "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] },
         "error": { "$ref": "#/$defs/error" }
       },
@@ -218,14 +246,13 @@
         {
           "properties": {
             "status": { "const": "available" },
-            "method": { "const": "coordinator_receipt_surrogate" },
+            "method": { "const": "coordinator_observed_window_v1" },
             "calibration_rounds": { "const": 100 },
-            "coordinator_receipt_skew_ns": { "type": "integer" },
-            "maximum_control_rtt_ns": { "type": "integer" },
-            "maximum_worker_start_ack_ns": { "type": "integer" },
+            "coordinator_receipt_spread_ns": { "type": "integer" },
+            "pre_attempt_control_rtt_max_ns": { "type": "integer" },
+            "worker_start_to_ack_max_ns": { "type": "integer" },
             "timer_resolution_allowance_ns": { "type": "integer" },
-            "uncertainty_ns": { "type": "integer" },
-            "start_skew_upper_bound_ns": { "type": "integer" },
+            "coordinator_observed_start_window_ns": { "type": "integer" },
             "evidence_sha256": { "$ref": "#/$defs/sha256" }
           },
           "not": { "required": ["error"] }
@@ -233,29 +260,29 @@
         {
           "properties": {
             "status": { "const": "not_required" }, "method": { "const": "not_required" },
-            "calibration_rounds": { "const": null }, "coordinator_receipt_skew_ns": { "const": null },
-            "maximum_control_rtt_ns": { "const": null }, "maximum_worker_start_ack_ns": { "const": null },
-            "timer_resolution_allowance_ns": { "const": null }, "uncertainty_ns": { "const": null },
-            "start_skew_upper_bound_ns": { "const": null }, "evidence_sha256": { "const": null }
+            "calibration_rounds": { "const": null }, "coordinator_receipt_spread_ns": { "const": null },
+            "pre_attempt_control_rtt_max_ns": { "const": null }, "worker_start_to_ack_max_ns": { "const": null },
+            "timer_resolution_allowance_ns": { "const": null },
+            "coordinator_observed_start_window_ns": { "const": null }, "evidence_sha256": { "const": null }
           },
           "not": { "required": ["error"] }
         },
         {
           "properties": {
             "status": { "const": "unavailable" }, "method": { "const": "unavailable" },
-            "calibration_rounds": { "const": null }, "coordinator_receipt_skew_ns": { "const": null },
-            "maximum_control_rtt_ns": { "const": null }, "maximum_worker_start_ack_ns": { "const": null },
-            "timer_resolution_allowance_ns": { "const": null }, "uncertainty_ns": { "const": null },
-            "start_skew_upper_bound_ns": { "const": null }, "evidence_sha256": { "const": null }
+            "calibration_rounds": { "const": null }, "coordinator_receipt_spread_ns": { "const": null },
+            "pre_attempt_control_rtt_max_ns": { "const": null }, "worker_start_to_ack_max_ns": { "const": null },
+            "timer_resolution_allowance_ns": { "const": null },
+            "coordinator_observed_start_window_ns": { "const": null }, "evidence_sha256": { "const": null }
           },
           "not": { "required": ["error"] }
         },
         {
           "properties": {
             "status": { "const": "error" }, "calibration_rounds": { "const": null },
-            "coordinator_receipt_skew_ns": { "const": null }, "maximum_control_rtt_ns": { "const": null },
-            "maximum_worker_start_ack_ns": { "const": null }, "timer_resolution_allowance_ns": { "const": null },
-            "uncertainty_ns": { "const": null }, "start_skew_upper_bound_ns": { "const": null }
+            "coordinator_receipt_spread_ns": { "const": null }, "pre_attempt_control_rtt_max_ns": { "const": null },
+            "worker_start_to_ack_max_ns": { "const": null }, "timer_resolution_allowance_ns": { "const": null },
+            "coordinator_observed_start_window_ns": { "const": null }
           },
           "required": ["error"]
         }

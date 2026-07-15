@@ -1,6 +1,6 @@
 # Active task board
 
-Last updated: 2026-07-14
+Last updated: 2026-07-15
 
 ## Review
 
@@ -23,7 +23,7 @@ Last updated: 2026-07-14
 - **Owned paths:** `docs/coordination/active-board.md`;
   `docs/coordination/m1-task-decomposition.md`;
   `docs/milestones/m1-feasibility-and-measurements.md`; `docs/contracts/`;
-  `docs/architecture/README.md`; ADRs `0004` through `0006` under
+  `docs/architecture/README.md`; ADRs `0004` through `0007` under
   `docs/architecture/adr/`; `schemas/`; `fixtures/contracts/`;
   `tools/validate_contracts.py`; `requirements/contract-validation.txt`;
   `.github/workflows/ci.yml`; and this pull request's task-owned record under
@@ -37,9 +37,14 @@ Last updated: 2026-07-14
   development/CI dependency; no production runtime dependency is added. External
   specifications and primary documentation are cited, not copied as implementation
   source.
-- **Acceptance checks:** Nine machine-readable schemas pass draft 2020-12 meta-schema
-  checks; positive fixtures pass schema and semantic validation; hostile mutations
-  fail for their required error codes; exact canonical and wire bytes/hashes reproduce;
+- **Owner decision recorded:** On 2026-07-15 the owner selected the empirical
+  coordinator-observed simultaneous-attempt inclusion rule (option 2). It is not a
+  clock result, actual-start estimate, or one-way-timing claim.
+- **Acceptance checks:** Fourteen machine-readable schemas pass draft 2020-12 meta-
+  schema checks; positive fixtures pass schema and semantic validation; hostile
+  mutations fail for their required error codes; the generated 108-control and
+  246-cell bundles resolve every raw digest and projection; exact canonical, wire,
+  TB5-evidence, and SafeTensors vectors reproduce;
   Markdown links resolve; existing Zig formatting, build, unit, smoke, and inventory
   checks pass; the complete diff passes evidence-label, unsupported-claim,
   privacy/secret, machine-identifier, attribution, provenance, and licensing review;

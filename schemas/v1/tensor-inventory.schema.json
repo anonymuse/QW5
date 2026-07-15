@@ -28,13 +28,14 @@
     "format": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "version", "byte_order", "ordering", "range_policy"],
+      "required": ["name", "version", "byte_order", "ordering", "range_policy", "parser_profile_sha256"],
       "properties": {
         "name": { "enum": ["safetensors", "qw5-derived", "fixture"] },
         "version": { "type": "string", "minLength": 1 },
         "byte_order": { "enum": ["little", "big", "not_applicable"] },
         "ordering": { "const": "tensor_name_lexicographic" },
-        "range_policy": { "enum": ["contiguous_no_overlap", "declared_aliases"] }
+        "range_policy": { "enum": ["contiguous_no_overlap", "declared_aliases"] },
+        "parser_profile_sha256": { "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] }
       }
     },
     "source_files": {
@@ -98,7 +99,8 @@
           "format": {
             "properties": {
               "byte_order": { "const": "little" },
-              "range_policy": { "const": "contiguous_no_overlap" }
+              "range_policy": { "const": "contiguous_no_overlap" },
+              "parser_profile_sha256": { "$ref": "#/$defs/sha256" }
             }
           },
           "tensors": {
@@ -231,7 +233,7 @@
         "normalized_dtype": {
           "enum": ["bool8", "uint8", "int8", "uint16", "int16", "float16", "bfloat16", "uint32", "int32", "float32", "uint64", "int64", "float64"]
         },
-        "shape": { "type": "array", "minItems": 1, "items": { "type": "integer", "minimum": 0 } },
+        "shape": { "type": "array", "maxItems": 16, "items": { "type": "integer", "minimum": 0, "maximum": 9223372036854775807 } },
         "element_count": { "type": "integer", "minimum": 0 },
         "stored_bytes": { "type": "integer", "minimum": 0 },
         "data_offsets": {

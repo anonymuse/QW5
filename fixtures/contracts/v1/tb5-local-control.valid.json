@@ -1,0 +1,26 @@
+{
+  "schema": "qw5.tb5-local-control/v1",
+  "artifact_role": "schema_fixture",
+  "evidence_class": "SIMULATED",
+  "created_at": "2000-01-01T00:00:00Z",
+  "producer": {
+    "name": "qw5-schema-fixture", "version": "1",
+    "executable_sha256": "1919191919191919191919191919191919191919191919191919191919191919",
+    "qw5_commit": "1919191919191919191919191919191919191919", "dirty": false,
+    "parameters": ["--fixture"]
+  },
+  "plan_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+  "control_id": "buffer_copy",
+  "node": "A",
+  "payload_bytes": 64,
+  "status": "COMPLETE",
+  "buffer_policy": {
+    "preallocated_input_buffers": 1,
+    "preallocated_output_buffers": 1,
+    "peak_application_buffer_bytes": 128,
+    "timing_scope": "copy_only"
+  },
+  "warmup_elapsed_ns": [1000, 990, 995],
+  "recorded_elapsed_ns": [980, 981, 982, 983, 984, 985, 986, 987, 988, 989],
+  "errors": []
+}

@@ -47,6 +47,7 @@ A.
 - [`ADR-0004: M1 evidence and artifact identity`](adr/0004-m1-evidence-and-artifact-identity.md)
 - [`ADR-0005: Thunderbolt 5 application-path measurement`](adr/0005-thunderbolt5-application-path-measurement.md)
 - [`ADR-0006: Memory fit is not deployment feasibility`](adr/0006-memory-fit-is-not-deployment-feasibility.md)
+- [`ADR-0007: Empirical simultaneous-attempt inclusion`](adr/0007-empirical-simultaneous-attempt-inclusion.md)
 
 ## Foundation decisions
 

@@ -30,7 +30,8 @@
       "additionalProperties": false,
       "required": [
         "model_manifest", "tensor_inventory", "hardware_inventory", "memory_baseline",
-        "link_summary", "quantization_layout", "formula_set", "text_subset_dependency"
+        "link_summary", "quantization_layout", "formula_set", "text_subset_dependency",
+        "gate_rule_set", "placement_candidate_set", "solver_objective", "reserve_headroom_policy"
       ],
       "properties": {
         "model_manifest": { "$ref": "#/$defs/input" },
@@ -40,7 +41,11 @@
         "link_summary": { "anyOf": [{ "$ref": "#/$defs/input" }, { "type": "null" }] },
         "quantization_layout": { "$ref": "#/$defs/input" },
         "formula_set": { "$ref": "#/$defs/input" },
-        "text_subset_dependency": { "anyOf": [{ "$ref": "#/$defs/input" }, { "type": "null" }] }
+        "text_subset_dependency": { "anyOf": [{ "$ref": "#/$defs/input" }, { "type": "null" }] },
+        "gate_rule_set": { "$ref": "#/$defs/input" },
+        "placement_candidate_set": { "$ref": "#/$defs/input" },
+        "solver_objective": { "$ref": "#/$defs/input" },
+        "reserve_headroom_policy": { "$ref": "#/$defs/input" }
       }
     },
     "workload": {
@@ -110,16 +115,23 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "decision_scope", "outcome", "required_gates", "passed_gates",
-        "failed_gates", "unresolved_gates", "next_permitted_task", "prohibited_claims"
+        "decision_scope", "outcome", "required_gates", "applicable_gates",
+        "passed_gates", "failed_gates", "unresolved_gates", "not_applicable_gates",
+        "gate_evaluations", "next_permitted_task", "prohibited_claims"
       ],
       "properties": {
         "decision_scope": { "const": "m1_memory_placement" },
-        "outcome": { "enum": ["GO", "CONDITIONAL_GO", "NO_GO", "UNDETERMINED"] },
+        "outcome": { "enum": ["GO", "NO_GO", "UNDETERMINED"] },
         "required_gates": { "$ref": "#/$defs/gate_ids" },
+        "applicable_gates": { "$ref": "#/$defs/gate_ids" },
         "passed_gates": { "$ref": "#/$defs/gate_ids" },
         "failed_gates": { "$ref": "#/$defs/gate_ids" },
         "unresolved_gates": { "$ref": "#/$defs/gate_ids" },
+        "not_applicable_gates": { "$ref": "#/$defs/gate_ids" },
+        "gate_evaluations": {
+          "type": "array", "minItems": 10, "maxItems": 10, "uniqueItems": true,
+          "items": { "$ref": "#/$defs/gate_evaluation" }
+        },
         "next_permitted_task": { "type": ["string", "null"] },
         "prohibited_claims": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
       },
@@ -130,16 +142,6 @@
             "properties": {
               "failed_gates": { "maxItems": 0 },
               "unresolved_gates": { "maxItems": 0 },
-              "next_permitted_task": { "type": "string", "minLength": 1 }
-            }
-          }
-        },
-        {
-          "if": { "properties": { "outcome": { "const": "CONDITIONAL_GO" } }, "required": ["outcome"] },
-          "then": {
-            "properties": {
-              "failed_gates": { "maxItems": 0 },
-              "unresolved_gates": { "minItems": 1 },
               "next_permitted_task": { "type": "string", "minLength": 1 }
             }
           }
@@ -188,11 +190,12 @@
     "input": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["sha256", "schema", "evidence_class"],
+      "required": ["sha256", "schema", "evidence_class", "acceptance_status"],
       "properties": {
         "sha256": { "$ref": "#/$defs/sha256" },
         "schema": { "type": "string", "pattern": "^qw5\\.[a-z0-9.-]+/v[0-9]+$" },
-        "evidence_class": { "enum": ["MEASURED", "SIMULATED", "ESTIMATED", "TARGET"] }
+        "evidence_class": { "enum": ["MEASURED", "SIMULATED", "ESTIMATED", "TARGET"] },
+        "acceptance_status": { "enum": ["accepted", "owner_approval_required", "rejected"] }
       }
     },
     "node_inputs": {
@@ -274,6 +277,23 @@
           "scratch_bounded", "state_bounded", "transport_profile_available",
           "text_subset_proven"
         ]
+      }
+    },
+    "gate_evaluation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["gate_id", "disposition", "reason", "evidence_sha256"],
+      "properties": {
+        "gate_id": {
+          "enum": [
+            "artifact_complete", "tensor_reconciled", "layout_complete",
+            "memory_baseline_accepted", "memory_nonnegative", "quality_available",
+            "scratch_bounded", "state_bounded", "transport_profile_available",
+            "text_subset_proven"
+          ]
+        },
+        "disposition": { "enum": ["passed", "failed", "unresolved", "not_applicable"] },
+        "reason": { "type": "string", "minLength": 1 },
+        "evidence_sha256": { "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] }
       }
     }
   }

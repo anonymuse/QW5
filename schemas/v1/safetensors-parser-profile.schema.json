@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/anonymuse/QW5/schemas/v1/safetensors-parser-profile.schema.json",
+  "title": "QW5 SafeTensors parser profile v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "artifact_role", "evidence_class", "created_at", "producer", "upstream", "limits", "supported_dtypes", "required_invariants"],
+  "properties": {
+    "schema": { "const": "qw5.safetensors-parser-profile/v1" },
+    "artifact_role": { "enum": ["parser_profile", "schema_fixture"] },
+    "evidence_class": { "const": "TARGET" },
+    "created_at": { "$ref": "#/$defs/timestamp" },
+    "producer": { "$ref": "#/$defs/producer" },
+    "upstream": {
+      "type": "object", "additionalProperties": false,
+      "required": ["repository", "commit", "format_reference"],
+      "properties": {
+        "repository": { "const": "safetensors/safetensors" },
+        "commit": { "const": "6eb4dc9a28ebce297606e0f4836bbf28839cacef" },
+        "format_reference": { "const": "README.md#format" }
+      }
+    },
+    "limits": {
+      "type": "object", "additionalProperties": false,
+      "required": ["maximum_header_bytes", "maximum_tensor_count", "maximum_rank", "maximum_dimension", "maximum_element_count"],
+      "properties": {
+        "maximum_header_bytes": { "const": 16777216 },
+        "maximum_tensor_count": { "const": 1000000 },
+        "maximum_rank": { "const": 16 },
+        "maximum_dimension": { "const": 9223372036854775807 },
+        "maximum_element_count": { "const": 18446744073709551615 }
+      }
+    },
+    "supported_dtypes": {
+      "const": ["BOOL", "U8", "I8", "U16", "I16", "F16", "BF16", "U32", "I32", "F32", "U64", "I64", "F64"]
+    },
+    "required_invariants": {
+      "const": [
+        "little_endian_header_length_u64", "strict_utf8_header", "header_starts_with_object",
+        "ascii_space_padding_only", "unique_json_members", "known_tensor_members_only",
+        "scalar_shape_empty_array_is_one_element", "checked_u64_shape_product",
+        "nonnegative_ordered_in_bounds_offsets", "contiguous_nonoverlapping_data_ranges",
+        "exact_dtype_byte_reconciliation", "reject_unsupported_dtypes"
+      ]
+    }
+  },
+  "$defs": {
+    "timestamp": { "type": "string", "format": "date-time", "pattern": "Z$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "git_commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "producer": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "version", "executable_sha256", "qw5_commit", "dirty", "parameters"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 }, "version": { "type": "string", "minLength": 1 },
+        "executable_sha256": { "$ref": "#/$defs/sha256" }, "qw5_commit": { "$ref": "#/$defs/git_commit" },
+        "dirty": { "type": "boolean" }, "parameters": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

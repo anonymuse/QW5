@@ -21,14 +21,15 @@
     "version": "1",
     "byte_order": "little",
     "ordering": "tensor_name_lexicographic",
-    "range_policy": "contiguous_no_overlap"
+    "range_policy": "contiguous_no_overlap",
+    "parser_profile_sha256": null
   },
   "source_files": [
     {
       "path": "model-00001-of-00001.safetensors",
-      "size_bytes": 32,
+      "size_bytes": 34,
       "header_bytes": 16,
-      "data_bytes": 16
+      "data_bytes": 18
     }
   ],
   "tensors": [
@@ -69,26 +70,45 @@
       "storage_id": "fixture-storage-1",
       "alias_of": null,
       "quantization": null
+    },
+    {
+      "name": "fixture.scalar",
+      "source_file": "model-00001-of-00001.safetensors",
+      "source_dtype": "F16",
+      "normalized_dtype": "float16",
+      "shape": [],
+      "element_count": 1,
+      "stored_bytes": 2,
+      "data_offsets": [16, 18],
+      "component": "language",
+      "semantic_class": "normalization",
+      "classification": {"status": "classified", "rule_id": "fixture-scalar"},
+      "layer_index": null,
+      "expert_index": null,
+      "shard_index": 0,
+      "storage_id": "fixture-storage-2",
+      "alias_of": null,
+      "quantization": null
     }
   ],
   "totals": {
-    "tensor_count": 2,
-    "element_count": 8,
-    "tensor_payload_bytes": 16,
+    "tensor_count": 3,
+    "element_count": 9,
+    "tensor_payload_bytes": 18,
     "container_overhead_bytes": 16,
     "by_file": {
       "model-00001-of-00001.safetensors": {
-        "tensor_count": 2,
-        "element_count": 8,
-        "tensor_payload_bytes": 16,
+        "tensor_count": 3,
+        "element_count": 9,
+        "tensor_payload_bytes": 18,
         "container_overhead_bytes": 16
       }
     },
-    "by_component": {"language": 16},
-    "by_dtype": {"float16": 16},
-    "by_semantic_class": {"embedding": 8, "output_head": 8},
-    "by_layer": {"none": 16},
-    "by_expert_class": {"none": 16}
+    "by_component": {"language": 18},
+    "by_dtype": {"float16": 18},
+    "by_semantic_class": {"embedding": 8, "normalization": 2, "output_head": 8},
+    "by_layer": {"none": 18},
+    "by_expert_class": {"none": 18}
   },
   "unclassified_tensors": [],
   "errors": []

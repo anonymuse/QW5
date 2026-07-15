@@ -21,9 +21,10 @@ model feasibility.
 - [`memory-placement-and-quantization-v1.md`](memory-placement-and-quantization-v1.md)
   defines the two-model feasibility analysis and decision vocabulary.
 
-The contract set includes nine v1 schemas: hardware inventory, clean-node memory
-baseline, TB5 run plan, route proof, raw measurement, link summary, model manifest,
-tensor inventory, and placement analysis.
+The contract set includes 14 v1 schemas: hardware inventory, clean-node memory
+baseline, TB5 run plan, route proof, raw local control, local-control index, raw
+synchronization evidence, raw measurement, measurement index, link summary, model
+manifest, SafeTensors parser profile, tensor inventory, and placement analysis.
 
 The corresponding JSON Schemas are under [`../../schemas/v1`](../../schemas/v1), with
 public-safe synthetic examples and negative fixtures under
@@ -70,7 +71,8 @@ referenced by a reviewed public-safe manifest.
 
 Every schema must validate against the draft 2020-12 meta-schema. Every example must
 pass its declared schema and semantic validator. Each negative mutation names the
-required schema or semantic error and must be rejected. Exact canonical and TB5 wire
-vectors must reproduce both bytes and SHA-256. CI installs the pinned validation-only
+required schema or semantic error and must be rejected. Exact canonical, TB5
+wire/evidence, and SafeTensors vectors must reproduce their bytes, canonical digests,
+projections, and named hostile failures. CI installs the pinned validation-only
 dependencies from `requirements/contract-validation.txt` and runs
 `tools/validate_contracts.py`; syntax-only parsing is insufficient.

@@ -1,0 +1,36 @@
+{
+  "schema": "qw5.safetensors-parser-vectors/v1",
+  "profile": "qw5.safetensors-parser-profile/v1",
+  "valid_vectors": [
+    {
+      "vector_id": "f16-scalar",
+      "source_hex": "3a000000000000007b227363616c6172223a7b226474797065223a22463136222c227368617065223a5b5d2c22646174615f6f666673657473223a5b302c325d7d7d003c",
+      "sha256": "a6c982950966943188501a45d54be7358ec86fb2ceffcc04aaecf9bd6861a2aa",
+      "tensors": [
+        {"name": "scalar", "dtype": "F16", "shape": [], "element_count": 1, "stored_bytes": 2, "data_offsets": [0, 2]}
+      ]
+    }
+  ],
+  "invalid_sources": [
+    {
+      "vector_id": "duplicate-tensor-dtype-member",
+      "source_hex": "48000000000000007b227363616c6172223a7b226474797065223a22463136222c226474797065223a22463136222c227368617065223a5b5d2c22646174615f6f666673657473223a5b302c325d7d7d003c",
+      "expected_error": "SAFETENSORS_DUPLICATE_MEMBER"
+    },
+    {
+      "vector_id": "scalar-offset-byte-mismatch",
+      "source_hex": "3a000000000000007b227363616c6172223a7b226474797065223a22463136222c227368617065223a5b5d2c22646174615f6f666673657473223a5b302c315d7d7d003c",
+      "expected_error": "SAFETENSORS_DTYPE_BYTES"
+    },
+    {
+      "vector_id": "unsupported-subbyte-dtype",
+      "source_hex": "3e000000000000007b227363616c6172223a7b226474797065223a2246385f45344d33222c227368617065223a5b5d2c22646174615f6f666673657473223a5b302c315d7d7d003c",
+      "expected_error": "SAFETENSORS_DTYPE"
+    },
+    {
+      "vector_id": "header-length-over-profile-limit",
+      "source_hex": "0100000100000000",
+      "expected_error": "SAFETENSORS_HEADER_LIMIT"
+    }
+  ]
+}

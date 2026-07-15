@@ -15,8 +15,13 @@ Each analysis pins exact SHA-256 identities for:
 - the relevant TB5 link summary or an explicit unavailable link input;
 - the quantization layout specification;
 - workload/state formulas and their source configuration;
+- the gate-rule set, complete candidate-placement set, solver objective, and
+  reserve/headroom policy as separate content-addressed artifacts;
 - the analysis tool, QW5 commit, and dirty state; and
 - every assumption or target reserve.
+
+Each non-null input records `accepted`, `owner_approval_required`, or `rejected`.
+Presence and a digest alone do not make an input decision-eligible.
 
 The clean-node memory input conforms to
 [`memory-baseline.schema.json`](../../schemas/v1/memory-baseline.schema.json). One
@@ -117,6 +122,13 @@ v1 artifacts and their schemas:
   state formulas, checked integer operations and rounding, cache policy, scratch and
   persistent-buffer bounds, transport message formulas, allocator/fragmentation
   policy, safety-reserve target, and every unresolved input;
+- `qw5.placement-gate-rule-set/v1`: gate IDs, applicability predicates,
+  pass/fail/unresolved derivations, evidence requirements, and prohibited claims;
+- `qw5.placement-candidate-set/v1`: every deterministic candidate and placement ID
+  eligible for analysis;
+- `qw5.placement-solver-objective/v1`: objective ordering and deterministic tie-breaks;
+- `qw5.reserve-headroom-policy/v1`: owner-approved safety reserves, headroom formula,
+  rounding, and rejection conditions;
 - `qw5.text-subset-dependency/v1` for Qwen3.5 when proposed: complete-manifest digest,
   included/excluded tensors and files, loader and text-path dependency rules, proof
   status, unresolved dependencies, and prohibited claims; and
@@ -142,6 +154,11 @@ enter the analyzer. A missing 8-, 6-, 5-, 4-, 3-, or 2-bit layout is reported as
   scenario accounts for latency, staging buffers, and measured cold-tier behavior.
 - A node with negative headroom fails the placement even if aggregate headroom is
   positive.
+- `text_subset_proven` is applicable only to `text_execution_subset`. A complete-
+  artifact analysis records it as not applicable with a reason and no proof input.
+- `transport_profile_available` is applicable exactly when a candidate has cross-node
+  traffic. A network-free candidate records it as not applicable; a networked
+  candidate requires an accepted link-summary input.
 
 ## Model-specific analyses
 
@@ -164,15 +181,16 @@ it for decisions with concrete candidate totals.
 
 Any candidate must expose per-node headroom after all runtime and operating-system
 classes. A candidate that fits memory but lacks quality evidence, implementable
-kernels, or bounded scratch is at most `CONDITIONAL_GO` to the next evidence task.
+kernels, or bounded scratch remains `UNDETERMINED`.
 
 ## Decision record
 
 Each scenario has:
 
 - `decision_scope: m1_memory_placement`;
-- outcome `GO`, `CONDITIONAL_GO`, `NO_GO`, or `UNDETERMINED`;
-- passed, failed, and unresolved gate IDs;
+- outcome `GO`, `NO_GO`, or `UNDETERMINED`;
+- applicable, passed, failed, unresolved, and not-applicable gate IDs;
+- one reasoned evaluation for every gate, with an evidence digest when applicable;
 - exact evidence and assumption references;
 - the next permitted task; and
 - explicit claims that remain prohibited.
@@ -181,12 +199,17 @@ Each scenario has:
 unproven until correctness, quality, kernels, transport, thermal behavior, and runtime
 stability have their own evidence.
 
-The required gate set is exhaustive and partitions exactly into passed, failed, and
-unresolved sets. `GO` requires every gate passed, no failed or unresolved gate,
-nonnegative headroom on every node, and a non-null next task. `CONDITIONAL_GO` requires
-nonnegative memory and names only the next evidence task. `NO_GO` has a failed gate
-and no next implementation task. `UNDETERMINED` has unresolved evidence and cannot be
-used as a capability claim.
+The required gate set is exhaustive. Applicable and not-applicable gates are disjoint
+and exhaustive; applicable gates partition into passed, failed, and unresolved.
+Applicability derives from component scope and network edges, never from the desired
+outcome. Passed and failed evaluations require an evidence digest. A not-applicable
+evaluation requires a machine-readable reason and must not carry success evidence.
+
+The outcome is recomputed rather than trusted from a producer assertion. `NO_GO`
+follows from a failed gate or negative headroom. `UNDETERMINED` follows from unresolved
+gates or any non-accepted input. `GO` requires every applicable gate passed, every
+lineage input accepted, nonnegative headroom on every node, and a non-null next task.
+A not-applicable gate has a reason and cannot carry success evidence.
 
 ## Acceptance and negative cases
 
@@ -195,6 +218,8 @@ or link identities; aggregate-only memory; double-subtracted OS reserve; negativ
 unreconciled byte components; duplicate storage assignment; omitted safety reserve;
 implicit zero scratch; unknown tensor-class placement; packet counts multiplied by
 expert count; combined prefill/decode rates; mutable model revision; quantization by
-bit-width label alone; overlapping or incomplete gate sets; `GO` with negative
-headroom or unresolved gates; quality inferred from size; and a capability claim
-derived from an estimated placement.
+bit-width label alone; overlapping, incomplete, or vacuously not-applicable gate sets;
+missing rule/candidate/objective/reserve lineage; a subset proof applied to a complete
+artifact; network traffic without an accepted link summary; `GO` with negative
+headroom, unresolved gates, or unaccepted lineage; quality inferred from size; and a
+capability claim derived from an estimated placement.

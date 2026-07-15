@@ -90,7 +90,7 @@
     "cell": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["cell_id", "schedule_index", "mode", "scenario_id", "payload_bytes", "status", "measurement_sha256", "flow_summaries", "aggregate_throughput", "thermal_regimes"],
+      "required": ["cell_id", "schedule_index", "mode", "scenario_id", "payload_bytes", "status", "measurement_sha256", "flow_summaries", "aggregate_throughput", "thermal_regimes", "exclusions", "errors"],
       "properties": {
         "cell_id": { "type": "string", "pattern": "^(stream|round-trip):[a-z0-9-]+:[0-9]+$" },
         "schedule_index": { "type": "integer", "minimum": 0, "maximum": 245 },
@@ -101,7 +101,26 @@
         "measurement_sha256": { "$ref": "#/$defs/sha256" },
         "flow_summaries": { "type": "array", "minItems": 1, "maxItems": 6, "items": { "$ref": "#/$defs/flow_summary" } },
         "aggregate_throughput": { "$ref": "#/$defs/metric" },
-        "thermal_regimes": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
+        "thermal_regimes": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+        "exclusions": { "type": "array", "items": { "$ref": "#/$defs/exclusion" } },
+        "errors": { "type": "array", "items": { "$ref": "#/$defs/error" } }
+      }
+    },
+    "exclusion": {
+      "type": "object", "additionalProperties": false,
+      "required": ["attempt_id", "reason", "included_in_failure_rate"],
+      "properties": {
+        "attempt_id": { "type": "string", "pattern": "^(warmup|sample)-[0-9]{3}$" },
+        "reason": { "type": "string", "pattern": "^[A-Z0-9_]+$" },
+        "included_in_failure_rate": { "const": true }
+      }
+    },
+    "error": {
+      "type": "object", "additionalProperties": false,
+      "required": ["code", "message"],
+      "properties": {
+        "code": { "type": "string", "pattern": "^[A-Z0-9_]+$" },
+        "message": { "type": "string", "minLength": 1 }
       }
     }
   }

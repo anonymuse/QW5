@@ -30,9 +30,9 @@ M1 separates four decisions:
    transport, thermal behavior, and runtime stability are demonstrated separately.
 
 Passing an earlier decision does not imply a later one. M1 may issue `GO` only for the
-scope `proceed to the next evidence task`. It may issue `CONDITIONAL_GO`, `NO_GO`, or
-`UNDETERMINED` for a proposed memory placement. It may not claim that either model
-runs, meets quality, or achieves a performance target.
+scope `proceed to the next evidence task`; otherwise it issues `NO_GO` or
+`UNDETERMINED`. It may not claim that either model runs, meets quality, or achieves a
+performance target.
 
 The Qwen3.5 text-first analysis does not discard vision tensors merely because the
 initial execution target is text. An exclusion is allowed only when the exact model
@@ -53,9 +53,12 @@ separately owner-approved safety reserve selected before results are visible.
 
 Before a bounded analyzer can be routed to Terra, Sol freezes versioned
 quantization-layout, workload/formula, text-subset-dependency, model-specific gate,
-and placement-candidate artifacts. This decision task owns formula rounding, layout
-exceptions, safety reserve, solver objective, candidate placements, and the Qwen3.5
-text-path exclusion proof. Terra implements only the accepted contracts and tests.
+placement-candidate, solver-objective, and reserve/headroom-policy artifacts. Every
+placement result carries their accepted content identities and partitions gates into
+applicable and not-applicable before pass/fail evaluation. This decision task owns
+formula rounding, layout exceptions, safety reserve, solver objective, candidate
+placements, and the Qwen3.5 text-path exclusion proof. Terra implements only the
+accepted contracts and tests.
 
 ## Consequences
 

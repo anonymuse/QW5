@@ -1,246 +1,275 @@
 # Thunderbolt 5 measurement protocol v1
 
-## Scope and artifact chain
+## Scope and evidence chain
 
 This protocol measures QW5-framed application traffic over persistent TCP connections
-bound to verified direct Thunderbolt network routes. Results describe only the exact
-recorded stack. They are not raw-link capacity, production-transport, inference, or
-model-performance claims.
+bound to verified direct Thunderbolt network routes. It does not measure raw-link
+capacity and does not establish inference, model, kernel, or production-transport
+performance.
 
 The machine-readable chain is:
 
-- [`tb5-run-plan.schema.json`](../../schemas/v1/tb5-run-plan.schema.json) for the
-  owner-approved 246-cell plan and local controls;
-- [`tb5-route-proof.schema.json`](../../schemas/v1/tb5-route-proof.schema.json) for
-  all six direct routes;
-- [`tb5-measurement.schema.json`](../../schemas/v1/tb5-measurement.schema.json) for
-  every raw cell result; and
-- [`tb5-link-summary.schema.json`](../../schemas/v1/tb5-link-summary.schema.json) for
-  the complete cell index and reconciled summaries.
+- [`tb5-run-plan.schema.json`](../../schemas/v1/tb5-run-plan.schema.json): the
+  owner-approved 246-cell schedule and resource policy;
+- [`tb5-route-proof.schema.json`](../../schemas/v1/tb5-route-proof.schema.json): the
+  six public-safe direct-route results;
+- [`tb5-local-control.schema.json`](../../schemas/v1/tb5-local-control.schema.json)
+  and [`tb5-local-control-index.schema.json`](../../schemas/v1/tb5-local-control-index.schema.json):
+  the 108 node/payload/control observations and their digest resolver;
+- [`tb5-synchronization-evidence.schema.json`](../../schemas/v1/tb5-synchronization-evidence.schema.json):
+  the raw empirical inclusion evidence for one simultaneous attempt;
+- [`tb5-measurement.schema.json`](../../schemas/v1/tb5-measurement.schema.json) and
+  [`tb5-measurement-index.schema.json`](../../schemas/v1/tb5-measurement-index.schema.json):
+  every raw cell plus the frozen relative-path/digest resolver; and
+- [`tb5-link-summary.schema.json`](../../schemas/v1/tb5-link-summary.schema.json):
+  the reconciled 246-cell projection.
 
-All JSON identities use [`qw5-json-c14n-v1`](canonical-json-v1.md). The exact
-handshake, payload generator, frame, digest trailer, acknowledgement, and golden bytes
-are defined by [`qw5-tb5-wire/v1`](thunderbolt5-wire-v1.md).
+Every digest is SHA-256 over [`qw5-json-c14n-v1`](canonical-json-v1.md) bytes. The
+handshake, deterministic payload generator, frame, checksum trailer, acknowledgement,
+and exact vectors are [`qw5-tb5-wire/v1`](thunderbolt5-wire-v1.md).
 
 ## Preconditions
 
-Before a run:
+Before physical collection:
 
-1. All three `qw5.hardware-inventory/v1` manifests pass schema, semantic, and public-
-   safety validation and match the intended A/B/C aliases.
-2. The six-entry route proof shows traffic bound directly to each pair's Thunderbolt
-   route. The data plane never traverses node A as coordinator or a non-test route.
-3. QW5 commit, clean-state flag, harness SHA-256, schema versions, OS builds,
-   requested socket settings, inventory and route-proof digests, seed, order
-   algorithm, thresholds, and local controls are frozen in an owner-approved run plan.
-4. Every node uses the same harness and canonical plan digest. An out-of-band control
-   barrier coordinates starts but never relays measured payloads.
-5. Low Power Mode is off, power source is stable and recorded, and every node remains
-   in nominal thermal state for five minutes before controls or network measurement.
-6. No model, conversion, backup, update, or unrelated high-load job runs. Process
-   checks stay local and only their public-safe pass/fail result is committed.
+1. Three `qw5.hardware-inventory/v1` artifacts pass schema, semantic, and public-
+   safety validation and identify only A/B/C aliases.
+2. The route proof passes for all six directions. No measured data path may use the
+   coordinator as a relay or use an unapproved interface.
+3. The owner approves the plan seed/order, route and inventory digests, clean QW5
+   commit, harness digest, socket request, thermal policy, 32 GiB per-flow stream cap,
+   30-second attempt cap, and all other `TARGET` settings.
+4. Every node uses the same clean harness and canonical plan digest. The control plane
+   coordinates work but never relays measured payloads.
+5. Low Power Mode is off; power is stable and recorded; every participating node is
+   nominal for five continuous minutes before collection.
+6. Model work, conversion, backup, update, and unrelated high-load jobs are absent.
 
-An unavailable route, dirty binary, plan mismatch, missing owner approval, or public-
-safety failure blocks physical execution. It is not repaired inside a measurement run.
+A dirty producer or identity, plan mismatch, route failure, missing approval, or
+public-safety failure blocks collection. Physical `MEASURED` artifacts with a dirty
+QW5 identity are rejected by semantic validation.
 
-## Transport and exact framing
+## Direct-route selection and evidence
 
-One worker and one persistent TCP connection serve each directed flow. `TCP_NODELAY`
-is enabled; TLS and compression are disabled. For both endpoints of every flow, record
-requested and effective send/receive buffers, `TCP_NODELAY`, address family,
-congestion-control name when exposed, maximum segment size when exposed, and the
-public route alias. Raw network addresses are forbidden.
+M1-03 must use public Network framework APIs rather than a shell route heuristic:
+
+1. Resolve the owner-mapped private Thunderbolt interface as an
+   [`NWInterface`](https://developer.apple.com/documentation/network/nwinterface).
+2. Set
+   [`NWParameters.requiredInterface`](https://developer.apple.com/documentation/network/nwparameters/requiredinterface)
+   and
+   [`NWParameters.requiredLocalEndpoint`](https://developer.apple.com/documentation/network/nwparameters/requiredlocalendpoint)
+   before creating the TCP connection.
+3. Wait for `NWConnection` ready state; inspect
+   [`NWConnection.currentPath`](https://developer.apple.com/documentation/network/nwconnection/currentpath),
+   its status, local endpoint, remote endpoint, and whether it uses the required
+   interface. Monitor path updates through the entire connection.
+4. Complete the QW5 identity handshake directly with the expected peer and verify the
+   peer alias, plan digest, flow, payload, and route alias.
+
+A direction passes only when the required interface and local endpoint were applied,
+the ready/current path uses that interface, public-safe endpoint comparisons match the
+owner mapping, no path change occurs, and the expected peer completes the handshake.
+The public artifact records API names, aliases, booleans, statuses, and digests; it
+never records raw interface names/indexes, addresses, hostnames, or ports. The owner
+may retain private raw routing details outside Git and expose only a salted content
+digest. Failure of any condition is `direct_verified: false` and blocks physical data
+for that direction.
+
+## Transport, framing, and buffers
+
+Each directed flow has one worker and one persistent TCP connection. `TCP_NODELAY` is
+enabled; TLS and compression are disabled. Both endpoints retain requested and
+effective send/receive buffers, address family, congestion-control observation,
+maximum-segment observation, and the public route alias. TCP interpretation follows
+[RFC 9293](https://www.rfc-editor.org/rfc/rfc9293.html).
 
 The wire contract fixes a 96-byte untimed identity handshake, 64-byte data header,
-payload, 32-byte SHA-256 trailer, and, in round-trip mode, 64-byte acknowledgement.
-Header, payload, trailer, acknowledgement, and observed socket bytes are separate.
-Deterministic payload bytes derive from seed, flow ID, payload size, and sequence by
-the exact SHA-256 counter formula; payload generation occurs outside a timed latency
-exchange.
+payload, 32-byte SHA-256 trailer, and a 64-byte acknowledgement in round-trip mode.
+Header, payload, trailer, acknowledgement, and observable socket bytes remain
+separate. The receiver credits a frame only after identity, exact length, monotonic
+sequence, deterministic payload, and SHA-256 validation.
 
-The receiver credits a message only after frame identity, exact length, monotonic
-sequence, deterministic bytes, and SHA-256 all pass. It records checksum count and
-elapsed time. Integrity work stays inside the application path and is not silently
-subtracted from throughput.
+Each active flow uses exactly one preallocated application send-payload buffer and
+one receive-payload buffer. Each raw cell records bytes per buffer, active-flow count,
+and the exact peak application payload-buffer total; semantic validation recomputes
+that total as `2 * payload_bytes * active_flow_count`.
+Transport/framework/kernel storage is recorded separately when observable and is
+never inferred from these two buffers.
 
-## Exact directed scenarios
+## Directed scenarios and matrix
 
-The canonical flow IDs are `a-b`, `b-a`, `a-c`, `c-a`, `b-c`, and `c-b`. A scenario
-ID is coupled to the following exact ordered flow set; it is not a free-form label.
+Canonical flows are `a-b`, `b-a`, `a-c`, `c-a`, `b-c`, and `c-b`.
 
-| Scenario ID | Ordered concurrent directed flows |
+| Scenario | Ordered simultaneous flows |
 | --- | --- |
-| `solo-a-b` | `A>B` |
-| `solo-b-a` | `B>A` |
-| `solo-a-c` | `A>C` |
-| `solo-c-a` | `C>A` |
-| `solo-b-c` | `B>C` |
-| `solo-c-b` | `C>B` |
-| `duplex-a-b` | `A>B`, `B>A` |
-| `duplex-a-c` | `A>C`, `C>A` |
-| `duplex-b-c` | `B>C`, `C>B` |
-| `fanout-a` | `A>B`, `A>C` |
-| `fanout-b` | `B>A`, `B>C` |
-| `fanout-c` | `C>A`, `C>B` |
-| `fanin-a` | `B>A`, `C>A` |
-| `fanin-b` | `A>B`, `C>B` |
-| `fanin-c` | `A>C`, `B>C` |
-| `cycle-a-b-c` | `A>B`, `B>C`, `C>A` |
-| `cycle-a-c-b` | `A>C`, `C>B`, `B>A` |
-| `all-directed` | all six in canonical flow order |
+| `solo-a-b`, `solo-b-a`, `solo-a-c`, `solo-c-a`, `solo-b-c`, `solo-c-b` | the named direction |
+| `duplex-a-b`, `duplex-a-c`, `duplex-b-c` | both directions on the named pair |
+| `fanout-a`, `fanout-b`, `fanout-c` | both outbound directions from the named node |
+| `fanin-a`, `fanin-b`, `fanin-c` | both inbound directions to the named node |
+| `cycle-a-b-c` | `a-b`, `b-c`, `c-a` |
+| `cycle-a-c-b` | `a-c`, `c-b`, `b-a` |
+| `all-directed` | all six in canonical order |
 
-Every flow in a simultaneous scenario uses one payload size and the same barrier.
-Ready acknowledgements precede release.
+Streaming tests all 18 scenarios at `64`, `256`, `1,024`, `4,096`, `16,384`,
+`65,536`, `262,144`, `1,048,576`, `4,194,304`, `16,777,216`, `67,108,864`, and
+`268,435,456` bytes: 216 cells. Round trip tests the six solo scenarios at `64`,
+`1,024`, `16,384`, `262,144`, and `4,194,304` bytes: 30 cells. Total: 246.
 
-## Cell matrix and deterministic order
+Cell IDs are `stream:<scenario>:<payload>` and
+`round-trip:<scenario>:<payload>`. `sha256-keyed-sort-v1` sorts by SHA-256 of the
+big-endian u64 seed followed by UTF-8 cell ID, with cell ID breaking digest ties.
+Semantic validation recomputes every schedule index.
 
-Streaming mode uses exactly these payload bytes:
+## Streaming attempt rule
 
-`64`, `256`, `1,024`, `4,096`, `16,384`, `65,536`, `262,144`, `1,048,576`,
-`4,194,304`, `16,777,216`, `67,108,864`, and `268,435,456`.
+Each stream cell retains three warm-ups, each targeting at least two seconds and one
+complete message per flow. It then seeks ten valid recorded attempts with no more
+than twelve attempts total.
 
-It covers all 18 scenarios, producing 216 cells. Round-trip mode covers only the six
-solo scenarios and payloads `64`, `1,024`, `16,384`, `262,144`, and `4,194,304`,
-producing 30 cells. The plan total is therefore 246, validated semantically rather
-than trusted from a declared count.
+For a recorded attempt:
 
-Each canonical cell ID is `stream:<scenario>:<payload>` or
-`round-trip:<scenario>:<payload>`. `sha256-keyed-sort-v1` orders cells by SHA-256 over
-the big-endian 64-bit seed followed by the UTF-8 cell ID; digest ties break by cell ID.
-The seed and resulting schedule index are committed before results exist. This
-preregistered order prevents discretionary best-condition ordering.
-Every cell result repeats the seed, and semantic validation recomputes that cell's
-exact schedule index. The final link summary repeats the seed, contains cells in
-schedule order, and validates every cell/index pair rather than checking only that
-the integers 0 through 245 appear.
+1. The source endpoint is the controlling endpoint. All workers are ready before the
+   coordinator releases the attempt.
+2. Payload generation begins inside the retained source interval. Receiver comparison
+   and SHA-256 complete inside the retained receiver interval. Their cost is not
+   removed from throughput.
+3. The target is three seconds. The source stops at the first complete-frame boundary
+   at or after the target, unless 30 seconds or 32 GiB of logical payload per flow is
+   reached first.
+4. If either cap is reached before the three-second target, the attempt is invalid and
+   retained. A cap never silently shortens a valid attempt.
+5. The source announces the final sequence on the control channel. The receiver ends
+   only after fully reading and validating that exact frame. EOF, timeout, or a final
+   partial frame invalidates and retains the attempt.
 
-## Streaming repetitions
+Connections keep fresh non-overlapping sequence ranges. The run idles five seconds
+between payloads and 60 seconds between scenarios, subject to the thermal rule.
+Streaming throughput is receiver-validated logical payload divided by receiver-local
+elapsed time. Sender and receiver clocks are never subtracted. Validation requires
+both retained endpoint intervals to meet the two-second warm-up or three-second sample
+target and rejects any interval or logical-payload total above the frozen cap.
 
-For every stream cell:
+## Round-trip rule
 
-- retain three warm-up attempts, excluded only from sample statistics;
-- run each warm-up for at least two seconds and one message per flow;
-- target ten valid measurement attempts, each at least three seconds and one message
-  per flow;
-- permit at most twelve measurement attempts total, so no more than two replacements;
-- continue fresh non-overlapping sequence ranges on persistent connections;
-- idle five seconds between payloads and sixty seconds between scenarios, subject to
-  the thermal rule; and
-- retain warm-ups, invalid attempts, replacements, errors, and partial results.
+The first four round-trip payload sizes retain 100 warm-up exchanges and 1,000
+recorded exchanges. The 4 MiB cell retains 20 warm-ups and 100 recorded exchanges.
+Before each timer starts, the source generates the payload/frame in its preallocated
+buffer. The timed interval includes send, receiver read, deterministic comparison,
+SHA-256, and acknowledgement. The source retains every source-local round-trip value.
+Results are never divided by two or relabeled as one-way latency.
 
-For each flow, record source- and receiver-local monotonic start/end, messages,
-logical payload, header, digest-trailer, acknowledgement and socket bytes, checksum
-count/time, sequence range, copy observations, and errors. Counts reconcile to payload
-size and sequence range. Streaming throughput is receiver-validated payload divided
-by receiver-local elapsed time. Sender timing remains separate; clocks are never
-subtracted across nodes.
+One failed integrity/exchange makes the batch `FAILED`; a timed connection failure
+makes it `ABORTED`. Partial exchanges and errors remain durable evidence.
 
-## Round-trip repetitions
+## Empirical simultaneous-attempt inclusion
 
-The receiver sends the fixed 64-byte acknowledgement only after full validation. For
-the first four sizes, retain 100 warm-up exchanges and record 1,000 sequential
-exchanges. For 4,194,304 bytes, retain 20 warm-ups and record 100 exchanges. Report
-every source-local round-trip latency and its distribution. Never divide by two or
-publish it as one-way latency.
+Different-node monotonic clocks are not comparable. V1 therefore does not estimate
+actual start-time separation. It uses `coordinator_observed_window_v1`, an empirical
+quality score used only to include or exclude a simultaneous attempt:
 
-The exchanges are stored as one warm-up batch and one measurement batch per cell,
-with each exchange latency retained. Round-trip batches have no replacement policy:
-an integrity/exchange failure makes the batch and cell `FAILED`; a timed connection
-failure makes it `ABORTED`. Partial exchanges and errors remain raw evidence.
+1. Immediately before release, every participant completes exactly 100 echo rounds
+   over the persistent control channel. Every RTT is retained.
+2. On release, each worker starts its data worker and queues `STARTED`. It records its
+   worker-local start-to-ack interval. The coordinator records all ack receipts on its
+   single monotonic clock.
+3. `pre_attempt_control_rtt_max_ns` is the maximum retained RTT.
+   `worker_start_to_ack_max_ns` is the maximum worker-local interval.
+   `timer_resolution_allowance_ns` is coordinator resolution plus the largest worker
+   resolution. `coordinator_receipt_spread_ns` is latest minus earliest coordinator
+   receipt.
+4. `coordinator_observed_start_window_ns` is receipt spread + maximum RTT + twice the
+   maximum worker interval + the timer-resolution allowance.
 
-## Synchronization evidence
+This value is not an actual-start estimate and cannot support a one-way-timing claim.
+An attempt is included only when maximum control RTT is at most 1 ms and the
+coordinator-observed window is at most 10 ms. Missing, malformed, or error evidence
+invalidates the attempt. If no simultaneous recorded attempt qualifies, the cell is
+`UNDETERMINED`. Solo attempts use `not_required`.
 
-Monotonic clocks on different nodes are not directly comparable. V1 therefore uses
-only `coordinator_receipt_surrogate`, measured on one coordinator monotonic clock:
+The raw record retains clocks by API identifier and units, all 100 RTTs per
+participant, release/receipt values, worker intervals, resolutions, derived values,
+decision, reasons, errors, and canonical digest. The measurement references that
+digest. Bundle validation resolves it, recomputes the canonical digest, and reconciles
+plan, cell, scenario, attempt, method, raw-derived fields, and inclusion decision to
+the attempt projection. The validator also recomputes every maximum, spread,
+allowance, score, and decision.
 
-1. Immediately before each simultaneous attempt, every worker completes 100 echo
-   rounds on the persistent control channel; the coordinator retains every RTT and the
-   maximum accepted RTT.
-2. On release, each worker starts its data worker and immediately queues a `STARTED`
-   acknowledgement. It records its local data-start-to-ack interval. The coordinator
-   records every acknowledgement receipt and their maximum-minus-minimum skew.
-3. The timer allowance is the sum of the recorded coordinator and participating-node
-   monotonic resolutions. Let `rtt` be the maximum control RTT and `worker` the maximum
-   local start-to-ack interval. The conservative uncertainty is
-   `rtt + 2 * worker + timer_allowance`.
-4. `start_skew_upper_bound = coordinator_receipt_skew + uncertainty`.
+## Copy observations and local controls
 
-The raw calibration/receipt record is canonical and content-addressed; its SHA-256 and
-all formula inputs are stored in the attempt. A valid attempt requires uncertainty at
-or below 1 ms and the upper bound at or below 10 ms. Exceeding either invalidates the
-attempt with the corresponding reason and permits a replacement within the stream
-twelve-attempt limit. If calibration is unavailable or cannot meet the uncertainty
-bound, the cell is `UNDETERMINED`, never simultaneous-link evidence. Solo flows mark
-this synchronization `not_required`.
+Every flow records producer-to-send, send-to-transport, and kernel/DMA/hardware at the
+source plus transport-to-receive, receive-to-consumer, and kernel/DMA/hardware at the
+destination. Direct counts are `MEASURED`; derived counts are `ESTIMATED`; fixture
+counts are `SIMULATED`; unavailable layers remain unavailable. Throughput never proves
+zero-copy.
 
-## Copy evidence and local controls
+Before network cells, every node runs three controls at every stream payload: raw
+buffer copy, frame plus verification, and deterministic generation plus SHA-256. That
+is 3 nodes x 12 payloads x 3 controls = 108 indexed artifacts. Each retains three
+warm-ups and ten recorded durations, buffer counts/peak bytes, timing scope, plan and
+producer identity, and errors. The index resolves each relative path to its canonical
+digest. Controls are matching cost context only; they are never subtracted from
+network measurements.
 
-Each flow records six endpoint/stage observations: producer-to-send,
-send-to-transport, and kernel/DMA/hardware at the source; transport-to-receive,
-receive-to-consumer, and kernel/DMA/hardware at the destination. Every entry names the
-endpoint, status, method, and, when available, count and bytes. Direct counts are
-`MEASURED`; inferred values are `ESTIMATED` and stay separate; schema-fixture values
-are `SIMULATED`. Kernel and hardware copies remain unavailable absent a direct
-documented probe. Throughput never proves zero-copy.
+A complete control has exactly three warm-ups, ten recorded durations, and no error.
+A failed, aborted, or undetermined control retains every completed duration and at
+least one structured error; it remains in the 108-entry index and cannot be normalized
+to an empty successful result.
 
-Before network cells, each node runs buffer-copy, frame encode/decode, and SHA-256
-controls for every stream payload with three retained warm-ups and ten recorded
-repetitions. Binary, seed, byte counts, elapsed time, thermal state, and errors are
-content-addressed. Controls may explain an application bottleneck but are never
-subtracted from network results or used to relabel link contention.
+## Thermal, failures, and retries
 
-## Error, retry, and thermal policy
+- Checksum, identity, sequence, bytes, route, empirical-inclusion, timeout, or partial-
+  frame failure invalidates and retains the attempt.
+- One reconnect is allowed before a scenario starts. A timed connection failure
+  aborts that cell.
+- No payload reduction, route change, relay, checksum disablement, schedule change, or
+  socket retuning is allowed inside a plan.
+- Every attempt retains start/end thermal state, Low Power Mode, power source, and
+  node-local observation times.
+- When a node leaves nominal state, finish and retain the current attempt, pause up to
+  15 minutes, and resume only after all participating nodes are nominal for five
+  continuous minutes. Otherwise abort the cell.
+- Different thermal or power regimes are not pooled.
 
-- Checksum, frame identity, sequence, byte-count, route, skew, or premature-EOF
-  failure invalidates and retains the attempt.
-- One reconnect is permitted before a scenario begins. A timed connection failure
-  aborts that scenario/payload cell.
-- Timeouts, socket errors, invalid attempts, exclusions, and replacements remain in
-  raw artifacts and in failure-rate counts.
-- Fewer than ten valid stream measurements after twelve attempts yields `FAILED`.
-- No payload reduction, path change, relay, checksum disablement, order change, or
-  socket retuning is allowed inside a plan. Any such change creates a new plan digest.
+## Measurement index and link summary
 
-Every attempt records beginning/end thermal state, Low Power Mode, power source, and
-local monotonic observation times for every participating node. If a node leaves
-nominal state, finish and retain the active attempt under its distinct thermal regime,
-then pause new work for up to 15 minutes. Resume only after all nodes are nominal for
-five continuous minutes; otherwise abort the cell. Results from different thermal or
-power regimes are never pooled. Ambient and fan data remain explicitly unavailable
-when no supported source exists.
+The measurement index has exactly 246 unique cell IDs, relative paths, and digests.
+The link summary records the index digest. For every cell, validation must resolve the
+path, recompute the raw canonical digest, and reconcile cell identity, mode, scenario,
+payload, status, ordered flow set, metrics, exclusions, errors, and thermal regimes.
+Coverage is recomputed from the reconciled statuses.
 
-## Artifact identity and summaries
+`COMPLETE` has an evidentiary meaning:
 
-Each result references the plan digest, schedule index, QW5 commit, harness digest,
-three inventory digests, route-proof digest, exact scenario flow set, payload, mode,
-seed, framing version, requested/effective socket settings, every warm-up and
-measurement attempt, exclusions, and collection errors.
+- stream: exactly ten throughput samples per flow and ten aggregate samples; latency
+  is empty;
+- round trip through 256 KiB: exactly 1,000 latency samples per flow; throughput and
+  aggregate are empty; and
+- 4 MiB round trip: exactly 100 latency samples per flow; throughput and aggregate are
+  empty.
 
-Per-flow and aggregate summaries report sample count, median, median absolute
-deviation, p95, minimum, maximum, invalid attempts, and thermal regimes. The link
-summary contains exactly 246 unique cell IDs and schedule indexes; coverage counts
-reconcile to the raw measurement index. Per-flow values are never hidden by an
-aggregate, and the best run is never the headline.
+`FAILED`, `ABORTED`, and `UNDETERMINED` cells retain whatever valid partial metrics,
+exclusions, errors, and thermal regimes exist. They are never converted to empty
+successful-looking records.
 
-Summary arithmetic is exact integer arithmetic. Stream input samples are per-attempt
-`floor(validated_payload_bytes * 1_000_000_000 / receiver_elapsed_ns)`; aggregate
-throughput is the sum of concurrent per-flow values for that attempt. Round-trip input
-samples are the retained source-local exchanges. Median is the middle value for odd
-counts and the floor of the two-middle-value average for even counts; median absolute
-deviation uses that same rule; p95 is nearest rank `ceil(0.95 * n)`. Wrong-mode
-metrics contain zero samples and null statistics. The semantic validator recomputes
-all per-flow and aggregate values.
+Integer summary arithmetic is fixed: per-attempt stream rate is
+`floor(validated_payload_bytes * 1_000_000_000 / receiver_elapsed_ns)`; simultaneous
+aggregate is the sum of its per-flow rates. Median is the middle value or floor of the
+two middle values' average; median absolute deviation uses the same rule; p95 is
+nearest rank `ceil(0.95 * n)`.
 
-## Acceptance and negative cases
+## Required hostile tests
 
-Schema validation is necessary but insufficient. `tools/validate_contracts.py`
-enforces scenario/flow coupling, complete plan coverage, route references, endpoint
-and socket coverage, arithmetic byte/sequence/checksum reconciliation, synchronization
-bounds, copy-stage coverage, attempt/summary/exclusion counts, cell outcome rules, and
-link-summary cell/flow/schedule/metric consistency.
+In addition to schema/meta-schema, canonical, wire, and link checks, validation rejects:
 
-Harness tests must additionally reject wrong peers or routes, plan/identity mismatch,
-corrupt or truncated frames, duplicate or regressing sequence, partial reads/writes,
-socket byte mismatch, unreported retry, invalid sample credited to statistics,
-cross-clock one-way latency, missing thermal evidence, unknown copy stage, raw network
-identifier, and any golden-wire-vector mismatch.
+- an all-`COMPLETE` summary with zero samples;
+- an index digest, path, raw digest, identity, status, metric, exclusion, error, or
+  thermal projection that disagrees;
+- an unsupported timing-bound field or a derived empirical score that does not
+  reconcile;
+- insufficient empirical evidence credited to a simultaneous cell;
+- a dirty physical `MEASURED` artifact;
+- incomplete 108-control or 246-measurement indexes;
+- route/peer mismatch, relay, path update, corrupt/truncated frame, sequence regression,
+  byte mismatch, hidden retry, cross-clock subtraction, missing thermal evidence,
+  unknown copy stage, and private machine/network identity.

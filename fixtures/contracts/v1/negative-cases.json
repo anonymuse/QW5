@@ -93,6 +93,13 @@
       "expected_error": "TB_FLOW_MAPPING"
     },
     {
+      "case_id": "tb-route-path-update-rejects-verification",
+      "base_fixture": "tb5-route-proof.valid.json",
+      "schema": "qw5.tb5-route-proof/v1",
+      "operations": [{"op": "replace", "path": "/routes/0/path_update_observed", "value": true}],
+      "expected_error": "SCHEMA"
+    },
+    {
       "case_id": "tb-measurement-scenario-flow-coupling",
       "base_fixture": "tb5-measurement.valid.json",
       "schema": "qw5.tb5-measurement/v1",
@@ -198,32 +205,71 @@
       "expected_error": "TB_THERMAL_SUMMARY"
     },
     {
-      "case_id": "tb-simultaneous-valid-sample-rejects-skew-upper-bound",
+      "case_id": "tb-sync-derived-window-reconciles",
+      "base_fixture": "tb5-synchronization-evidence.valid.json",
+      "schema": "qw5.tb5-synchronization-evidence/v1",
+      "operations": [{"op": "replace", "path": "/derived/coordinator_observed_start_window_ns", "value": 1}],
+      "expected_error": "TB_SYNC_RECONCILIATION"
+    },
+    {
+      "case_id": "tb-sync-rejects-unsupported-upper-bound",
+      "base_fixture": "tb5-synchronization-evidence.valid.json",
+      "schema": "qw5.tb5-synchronization-evidence/v1",
+      "operations": [{"op": "add", "path": "/derived/start_skew_upper_bound_ns", "value": 4620150}],
+      "expected_error": "SCHEMA"
+    },
+    {
+      "case_id": "tb-sync-threshold-controls-inclusion",
+      "base_fixture": "tb5-synchronization-evidence.valid.json",
+      "schema": "qw5.tb5-synchronization-evidence/v1",
+      "operations": [{"op": "replace", "path": "/derived/inclusion_decision", "value": "excluded"}],
+      "expected_error": "TB_SYNC_DECISION"
+    },
+    {
+      "case_id": "tb-physical-measured-rejects-dirty-identity",
       "base_fixture": "tb5-measurement.valid.json",
       "schema": "qw5.tb5-measurement/v1",
       "operations": [
-        {"op": "replace", "path": "/scenario/scenario_id", "value": "duplex-a-b"},
-        {"op": "add", "path": "/scenario/flows/-", "value": {"flow_id": "b-a", "source": "B", "destination": "A", "route_alias": "A-B"}},
-        {"op": "copy", "from": "/socket_settings/0", "path": "/socket_settings/-"},
-        {"op": "replace", "path": "/socket_settings/2/flow_id", "value": "b-a"},
-        {"op": "copy", "from": "/socket_settings/1", "path": "/socket_settings/-"},
-        {"op": "replace", "path": "/socket_settings/3/flow_id", "value": "b-a"},
-        {"op": "copy", "from": "/attempts/0/flows/0", "path": "/attempts/0/flows/-"},
-        {"op": "replace", "path": "/attempts/0/flows/1/flow_id", "value": "b-a"},
-        {"op": "replace", "path": "/attempts/0/synchronization", "value": {"status": "available", "method": "coordinator_receipt_surrogate", "calibration_rounds": 100, "coordinator_receipt_skew_ns": 4000000, "maximum_control_rtt_ns": 100000, "maximum_worker_start_ack_ns": 100000, "timer_resolution_allowance_ns": 50000, "uncertainty_ns": 350000, "start_skew_upper_bound_ns": 4350000, "evidence_sha256": "abababababababababababababababababababababababababababababababab"}},
-        {"op": "copy", "from": "/attempts/1/flows/0", "path": "/attempts/1/flows/-"},
-        {"op": "replace", "path": "/attempts/1/flows/1/flow_id", "value": "b-a"},
-        {"op": "replace", "path": "/attempts/1/synchronization", "value": {"status": "available", "method": "coordinator_receipt_surrogate", "calibration_rounds": 100, "coordinator_receipt_skew_ns": 4000000, "maximum_control_rtt_ns": 100000, "maximum_worker_start_ack_ns": 100000, "timer_resolution_allowance_ns": 50000, "uncertainty_ns": 350000, "start_skew_upper_bound_ns": 4350000, "evidence_sha256": "abababababababababababababababababababababababababababababababab"}},
-        {"op": "copy", "from": "/attempts/2/flows/0", "path": "/attempts/2/flows/-"},
-        {"op": "replace", "path": "/attempts/2/flows/1/flow_id", "value": "b-a"},
-        {"op": "replace", "path": "/attempts/2/synchronization", "value": {"status": "available", "method": "coordinator_receipt_surrogate", "calibration_rounds": 100, "coordinator_receipt_skew_ns": 4000000, "maximum_control_rtt_ns": 100000, "maximum_worker_start_ack_ns": 100000, "timer_resolution_allowance_ns": 50000, "uncertainty_ns": 350000, "start_skew_upper_bound_ns": 4350000, "evidence_sha256": "abababababababababababababababababababababababababababababababab"}},
-        {"op": "copy", "from": "/attempts/3/flows/0", "path": "/attempts/3/flows/-"},
-        {"op": "replace", "path": "/attempts/3/flows/1/flow_id", "value": "b-a"},
-        {"op": "replace", "path": "/attempts/3/synchronization", "value": {"status": "available", "method": "coordinator_receipt_surrogate", "calibration_rounds": 100, "coordinator_receipt_skew_ns": 9700000, "maximum_control_rtt_ns": 100000, "maximum_worker_start_ack_ns": 100000, "timer_resolution_allowance_ns": 50000, "uncertainty_ns": 350000, "start_skew_upper_bound_ns": 10050000, "evidence_sha256": "abababababababababababababababababababababababababababababababab"}},
-        {"op": "copy", "from": "/summary/flow_summaries/0", "path": "/summary/flow_summaries/-"},
-        {"op": "replace", "path": "/summary/flow_summaries/1/flow_id", "value": "b-a"}
+        {"op": "replace", "path": "/artifact_role", "value": "measurement"},
+        {"op": "replace", "path": "/evidence_class", "value": "MEASURED"},
+        {"op": "replace", "path": "/identity/dirty", "value": true}
       ],
-      "expected_error": "TB_SYNC_SKEW"
+      "expected_error": "TB_MEASURED_DIRTY"
+    },
+    {
+      "case_id": "tb-application-buffer-reconciles",
+      "base_fixture": "tb5-measurement.valid.json",
+      "schema": "qw5.tb5-measurement/v1",
+      "operations": [{"op": "replace", "path": "/application_buffers/peak_application_payload_buffer_bytes", "value": 127}],
+      "expected_error": "TB_APPLICATION_BUFFER_RECONCILIATION"
+    },
+    {
+      "case_id": "tb-local-control-complete-requires-ten-recorded",
+      "base_fixture": "tb5-local-control.valid.json",
+      "schema": "qw5.tb5-local-control/v1",
+      "operations": [{"op": "remove", "path": "/recorded_elapsed_ns/9"}],
+      "expected_error": "SCHEMA"
+    },
+    {
+      "case_id": "tb-local-control-failure-retains-error",
+      "base_fixture": "tb5-local-control.valid.json",
+      "schema": "qw5.tb5-local-control/v1",
+      "operations": [{"op": "replace", "path": "/status", "value": "FAILED"}],
+      "expected_error": "SCHEMA"
+    },
+    {
+      "case_id": "tb-stream-source-target-enforced",
+      "base_fixture": "tb5-measurement.valid.json",
+      "schema": "qw5.tb5-measurement/v1",
+      "operations": [{"op": "replace", "path": "/attempts/3/flows/0/source_monotonic_end_ns", "value": 11900000000}],
+      "expected_error": "TB_STREAM_DURATION"
+    },
+    {
+      "case_id": "tb-stream-maximum-duration-enforced",
+      "base_fixture": "tb5-measurement.valid.json",
+      "schema": "qw5.tb5-measurement/v1",
+      "operations": [{"op": "replace", "path": "/attempts/3/flows/0/source_monotonic_end_ns", "value": 40000000001}],
+      "expected_error": "TB_STREAM_CAP"
     },
     {
       "case_id": "model-revision-must-be-immutable",
@@ -326,6 +372,27 @@
       "expected_error": "TENSOR_ELEMENT_COUNT"
     },
     {
+      "case_id": "tensor-scalar-element-count-is-one",
+      "base_fixture": "tensor-inventory.valid.json",
+      "schema": "qw5.tensor-inventory/v1",
+      "operations": [{"op": "replace", "path": "/tensors/2/element_count", "value": 0}],
+      "expected_error": "TENSOR_ELEMENT_COUNT"
+    },
+    {
+      "case_id": "tensor-scalar-byte-count-reconciles",
+      "base_fixture": "tensor-inventory.valid.json",
+      "schema": "qw5.tensor-inventory/v1",
+      "operations": [{"op": "replace", "path": "/tensors/2/stored_bytes", "value": 1}],
+      "expected_error": "TENSOR_STORED_BYTES"
+    },
+    {
+      "case_id": "tensor-scalar-offset-reconciles",
+      "base_fixture": "tensor-inventory.valid.json",
+      "schema": "qw5.tensor-inventory/v1",
+      "operations": [{"op": "replace", "path": "/tensors/2/data_offsets", "value": [16, 17]}],
+      "expected_error": "TENSOR_RANGE_SIZE"
+    },
+    {
       "case_id": "tensor-totals-reconcile",
       "base_fixture": "tensor-inventory.valid.json",
       "schema": "qw5.tensor-inventory/v1",
@@ -371,7 +438,7 @@
       "case_id": "placement-gates-exhaustive",
       "base_fixture": "placement-analysis.valid.json",
       "schema": "qw5.placement-analysis/v1",
-      "operations": [{"op": "remove", "path": "/decision/unresolved_gates/4"}],
+      "operations": [{"op": "remove", "path": "/decision/not_applicable_gates/1"}],
       "expected_error": "PLACEMENT_GATE_COVERAGE"
     },
     {
@@ -400,6 +467,75 @@
       "schema": "qw5.placement-analysis/v1",
       "operations": [{"op": "replace", "path": "/model/component_scope", "value": "text_execution_subset"}],
       "expected_error": "PLACEMENT_TEXT_SUBSET_PROOF"
+    },
+    {
+      "case_id": "placement-rejects-missing-lineage-identity",
+      "base_fixture": "placement-analysis.valid.json",
+      "schema": "qw5.placement-analysis/v1",
+      "operations": [{"op": "remove", "path": "/inputs/solver_objective"}],
+      "expected_error": "SCHEMA"
+    },
+    {
+      "case_id": "placement-rejects-missing-gate-rule-lineage",
+      "base_fixture": "placement-analysis.valid.json",
+      "schema": "qw5.placement-analysis/v1",
+      "operations": [{"op": "remove", "path": "/inputs/gate_rule_set"}],
+      "expected_error": "SCHEMA"
+    },
+    {
+      "case_id": "placement-rejects-missing-candidate-lineage",
+      "base_fixture": "placement-analysis.valid.json",
+      "schema": "qw5.placement-analysis/v1",
+      "operations": [{"op": "remove", "path": "/inputs/placement_candidate_set"}],
+      "expected_error": "SCHEMA"
+    },
+    {
+      "case_id": "placement-passed-gate-requires-evidence",
+      "base_fixture": "placement-analysis.valid.json",
+      "schema": "qw5.placement-analysis/v1",
+      "operations": [{"op": "replace", "path": "/decision/gate_evaluations/0/evidence_sha256", "value": null}],
+      "expected_error": "PLACEMENT_GATE_EVIDENCE"
+    },
+    {
+      "case_id": "placement-not-applicable-gate-rejects-success-evidence",
+      "base_fixture": "placement-analysis.valid.json",
+      "schema": "qw5.placement-analysis/v1",
+      "operations": [{"op": "replace", "path": "/decision/gate_evaluations/8/evidence_sha256", "value": "1818181818181818181818181818181818181818181818181818181818181818"}],
+      "expected_error": "PLACEMENT_GATE_EVIDENCE"
+    },
+    {
+      "case_id": "placement-rejects-bad-text-subset-na",
+      "base_fixture": "placement-analysis.valid.json",
+      "schema": "qw5.placement-analysis/v1",
+      "operations": [
+        {"op": "replace", "path": "/model/component_scope", "value": "text_execution_subset"},
+        {"op": "copy", "from": "/inputs/formula_set", "path": "/inputs/text_subset_dependency"},
+        {"op": "replace", "path": "/inputs/text_subset_dependency/schema", "value": "qw5.text-subset-dependency/v1"}
+      ],
+      "expected_error": "PLACEMENT_TEXT_SUBSET_APPLICABILITY"
+    },
+    {
+      "case_id": "placement-network-edge-requires-link-summary",
+      "base_fixture": "placement-analysis.valid.json",
+      "schema": "qw5.placement-analysis/v1",
+      "operations": [{"op": "add", "path": "/network_edges/-", "value": {"source": "A", "destination": "B", "message_class": "control", "payload_bytes": 64, "messages_per_million_tokens": 1, "link_summary_sha256": "abababababababababababababababababababababababababababababababab"}}],
+      "expected_error": "PLACEMENT_LINK_INPUT"
+    },
+    {
+      "case_id": "placement-rejects-vacuous-go",
+      "base_fixture": "placement-analysis.valid.json",
+      "schema": "qw5.placement-analysis/v1",
+      "operations": [
+        {"op": "replace", "path": "/decision/outcome", "value": "GO"},
+        {"op": "replace", "path": "/decision/unresolved_gates", "value": []},
+        {"op": "replace", "path": "/decision/applicable_gates", "value": ["artifact_complete", "tensor_reconciled", "layout_complete", "memory_baseline_accepted", "memory_nonnegative"]},
+        {"op": "replace", "path": "/decision/not_applicable_gates", "value": ["quality_available", "scratch_bounded", "state_bounded", "transport_profile_available", "text_subset_proven"]},
+        {"op": "replace", "path": "/decision/next_permitted_task", "value": "forbidden-next-task"},
+        {"op": "replace", "path": "/decision/gate_evaluations/5/disposition", "value": "not_applicable"},
+        {"op": "replace", "path": "/decision/gate_evaluations/6/disposition", "value": "not_applicable"},
+        {"op": "replace", "path": "/decision/gate_evaluations/7/disposition", "value": "not_applicable"}
+      ],
+      "expected_error": "PLACEMENT_GATE_APPLICABILITY"
     },
     {
       "case_id": "memory-summary-counts-reconcile",

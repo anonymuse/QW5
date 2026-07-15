@@ -43,7 +43,7 @@ The probe emits every fact ID exactly once and sorts facts by `fact_id`.
 | `clock.monotonic_name` | string, `none` | Identifies the benchmark clock |
 | `clock.monotonic_resolution_ns` | integer, `ns` | Bounds timer resolution |
 | `clock.sync_method` | string, `none` | Describes wall-clock coordination |
-| `clock.sync_uncertainty_ns` | integer, `ns` | Prevents unsupported one-way timing |
+| `clock.sync_uncertainty_ns` | integer, `ns` | Optional source-reported clock fact; unavailable unless directly exposed |
 | `cpu.efficiency_core_count` | integer, `count` | Separates heterogeneous CPU capacity |
 | `cpu.logical_core_count` | integer, `count` | Records scheduler-visible CPUs |
 | `cpu.performance_core_count` | integer, `count` | Separates heterogeneous CPU capacity |
@@ -74,6 +74,10 @@ The probe emits every fact ID exactly once and sorts facts by `fact_id`.
 `clock.sync_uncertainty_ns`, GPU core count, memory pressure, power source, and
 Thunderbolt controller count may be unavailable on a supported public interface. They
 remain required records precisely so their absence cannot disappear.
+
+The optional clock fact is not consumed by ADR-0007 or the TB5 v1 empirical
+simultaneous-attempt rule. Presence of a source-reported value cannot authorize
+cross-node clock subtraction or one-way latency.
 
 ## Link routes
 

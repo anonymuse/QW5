@@ -9,7 +9,7 @@
 The declared full mesh does not establish effective application throughput, latency,
 concurrency, copy count, routing, or error behavior. Controller marketing rates do not
 answer those questions. Cross-node clock subtraction also cannot produce defensible
-one-way latency without a measured synchronization-error bound.
+one-way latency in this protocol.
 
 QW5 needs transport evidence that matches the production boundary closely enough to
 guide later scheduling while remaining implementable and auditable on macOS.
@@ -31,9 +31,8 @@ network path.
 
 Streaming throughput is timed independently at each endpoint using its monotonic
 clock. Request/acknowledgement tests report measured round-trip latency. They do not
-divide by two or publish one-way latency. A future one-way result requires a separate
-accepted clock-calibration method and an uncertainty bound smaller than the effect
-being reported.
+divide by two or publish one-way latency. One-way timing is outside this ADR and would
+require a separate architecture decision and measurement contract.
 
 Every message uses a deterministic payload and SHA-256 integrity check. Checksum time
 is recorded because integrity cost is part of the measured application path; it is not
@@ -45,17 +44,16 @@ and deterministic keyed order. The exact v1 wire format and golden bytes are fro
 before harness implementation. Local buffer-copy, framing, and SHA-256 controls are
 measured separately and never silently subtracted or relabeled as link capacity.
 
-Start skew across nodes is accepted only with the v1 coordinator-receipt surrogate,
-100-round control calibration, uncertainty at or below 1 ms, and a conservative skew
-upper bound at or below 10 ms. An unavailable or insufficient bound makes the
-simultaneous cell `UNDETERMINED`; unrelated monotonic clocks are not compared directly.
+Simultaneous-attempt inclusion follows ADR-0007. It uses a same-coordinator empirical
+observation and never interprets different-node clocks as a common timebase. Missing
+or insufficient evidence makes the cell `UNDETERMINED`.
 
 ## Consequences
 
 - M1 claims application-path behavior for the recorded stack, not raw Thunderbolt 5
   signaling capacity.
-- Simultaneous tests use one worker per directed flow and a start barrier; start skew
-  and its measured uncertainty are recorded and bounded by the protocol.
+- Simultaneous tests use one worker per directed flow and a start barrier; their
+  eligibility is determined by the empirical rule in ADR-0007.
 - Warm-ups, invalid attempts, replacements, per-endpoint timestamps, socket bytes,
   copy evidence, exclusions, and thermal regimes remain in raw artifacts.
 - Kernel and hardware copy counts may remain unavailable. QW5 reports only observable

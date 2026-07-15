@@ -21,7 +21,8 @@
       "A": "4040404040404040404040404040404040404040404040404040404040404040",
       "B": "5050505050505050505050505050505050505050505050505050505050505050",
       "C": "6060606060606060606060606060606060606060606060606060606060606060"
-    }
+    },
+    "local_control_index_sha256": "3c7c0a23ff8532e81644dd9db40a882eecf35d10336846617ce792be5249ee96"
   },
   "seed": 42,
   "order_algorithm": "sha256-keyed-sort-v1",
@@ -62,8 +63,17 @@
     "warmup_minimum_duration_ns": 2000000000,
     "valid_repetitions": 10,
     "maximum_attempts": 12,
-    "sample_minimum_duration_ns": 3000000000,
-    "minimum_messages_per_flow": 1
+    "sample_target_duration_ns": 3000000000,
+    "maximum_duration_ns": 30000000000,
+    "maximum_payload_bytes_per_flow": 34359738368,
+    "minimum_messages_per_flow": 1,
+    "controlling_endpoint": "source",
+    "stop_rule": "first_complete_frame_at_or_after_target_before_either_cap",
+    "timeout_outcome": "invalid_attempt_retained",
+    "final_partial_frame_outcome": "invalid_attempt_retained",
+    "payload_generation_timing": "inside_retained_stream_interval",
+    "payload_verification_timing": "inside_receiver_retained_interval",
+    "buffer_policy": "one_preallocated_send_and_receive_payload_buffer_per_active_flow"
   },
   "round_trip_policy": {
     "small_payload_max_bytes": 262144,
@@ -71,12 +81,17 @@
     "small_recorded_exchanges": 1000,
     "large_payload_bytes": 4194304,
     "large_warmup_exchanges": 20,
-    "large_recorded_exchanges": 100
+    "large_recorded_exchanges": 100,
+    "payload_generation_timing": "before_each_exchange_timer",
+    "payload_verification_timing": "inside_exchange_timer_before_ack",
+    "buffer_policy": "one_preallocated_send_and_receive_payload_buffer_per_active_flow"
   },
   "synchronization": {
-    "start_skew_limit_ns": 10000000,
-    "maximum_uncertainty_ns": 1000000,
-    "accepted_methods": ["coordinator_receipt_surrogate"],
+    "maximum_pre_attempt_control_rtt_ns": 1000000,
+    "maximum_coordinator_observed_start_window_ns": 10000000,
+    "pre_attempt_control_rounds_per_participant": 100,
+    "accepted_methods": ["coordinator_observed_window_v1"],
+    "interpretation": "empirical_inclusion_score_not_clock_bound_or_start_skew_proof",
     "insufficient_evidence_outcome": "UNDETERMINED"
   },
   "framing": {
@@ -98,6 +113,8 @@
     "address_family": "ipv6"
   },
   "local_controls": {
+    "schema": "qw5.tb5-local-control/v1",
+    "index_schema": "qw5.tb5-local-control-index/v1",
     "nodes": ["A", "B", "C"],
     "payload_bytes": [64, 256, 1024, 4096, 16384, 65536, 262144, 1048576, 4194304, 16777216, 67108864, 268435456],
     "warmup_repetitions": 3,
