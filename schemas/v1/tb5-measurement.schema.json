@@ -1,0 +1,466 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/anonymuse/QW5/schemas/v1/tb5-measurement.schema.json",
+  "title": "QW5 Thunderbolt 5 application-path measurement v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "artifact_role", "evidence_class", "run_id", "cell_id", "created_at", "producer",
+    "identity", "plan_seed", "schedule_index", "scenario", "payload_bytes", "mode", "application_buffers",
+    "framing", "socket_settings", "attempts", "summary", "exclusions", "errors"
+  ],
+  "properties": {
+    "schema": { "const": "qw5.tb5-measurement/v1" },
+    "artifact_role": { "enum": ["measurement", "schema_fixture"] },
+    "evidence_class": { "enum": ["MEASURED", "SIMULATED"] },
+    "run_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9.-]*$" },
+    "cell_id": { "type": "string", "pattern": "^(stream|round-trip):[a-z0-9-]+:[0-9]+$" },
+    "created_at": { "$ref": "#/$defs/timestamp" },
+    "producer": { "$ref": "#/$defs/producer" },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["qw5_commit", "dirty", "plan_sha256", "harness_sha256", "route_proof_sha256", "inventory_sha256", "local_control_index_sha256"],
+      "properties": {
+        "qw5_commit": { "$ref": "#/$defs/git_commit" },
+        "dirty": { "type": "boolean" },
+        "plan_sha256": { "$ref": "#/$defs/sha256" },
+        "harness_sha256": { "$ref": "#/$defs/sha256" },
+        "route_proof_sha256": { "$ref": "#/$defs/sha256" },
+        "inventory_sha256": { "$ref": "#/$defs/node_digests" },
+        "local_control_index_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "plan_seed": { "type": "integer", "minimum": 0, "maximum": 18446744073709551615 },
+    "schedule_index": { "type": "integer", "minimum": 0, "maximum": 245 },
+    "scenario": { "$ref": "#/$defs/scenario" },
+    "payload_bytes": {
+      "enum": [64, 256, 1024, 4096, 16384, 65536, 262144, 1048576, 4194304, 16777216, 67108864, 268435456]
+    },
+    "mode": { "enum": ["stream", "round_trip"] },
+    "application_buffers": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "send_payload_buffers_per_flow", "receive_payload_buffers_per_flow",
+        "bytes_per_buffer", "active_flow_count", "peak_application_payload_buffer_bytes"
+      ],
+      "properties": {
+        "send_payload_buffers_per_flow": { "const": 1 },
+        "receive_payload_buffers_per_flow": { "const": 1 },
+        "bytes_per_buffer": { "type": "integer", "minimum": 1 },
+        "active_flow_count": { "type": "integer", "minimum": 1, "maximum": 6 },
+        "peak_application_payload_buffer_bytes": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "framing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocol", "handshake_bytes", "data_header_bytes", "digest_trailer_bytes", "ack_bytes", "checksum"],
+      "properties": {
+        "protocol": { "const": "qw5-tb5-wire/v1" },
+        "handshake_bytes": { "const": 96 },
+        "data_header_bytes": { "const": 64 },
+        "digest_trailer_bytes": { "const": 32 },
+        "ack_bytes": { "enum": [0, 64] },
+        "checksum": { "const": "sha256" }
+      }
+    },
+    "socket_settings": {
+      "type": "array",
+      "minItems": 2,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/socket_setting" }
+    },
+    "attempts": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/attempt" } },
+    "summary": { "$ref": "#/$defs/summary" },
+    "exclusions": { "type": "array", "items": { "$ref": "#/$defs/exclusion" } },
+    "errors": { "type": "array", "items": { "$ref": "#/$defs/error" } }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "artifact_role": { "const": "measurement" } }, "required": ["artifact_role"] },
+      "then": { "properties": { "evidence_class": { "const": "MEASURED" } } },
+      "else": { "properties": { "evidence_class": { "const": "SIMULATED" } } }
+    },
+    {
+      "if": { "properties": { "mode": { "const": "round_trip" } }, "required": ["mode"] },
+      "then": {
+        "properties": {
+          "payload_bytes": { "enum": [64, 1024, 16384, 262144, 4194304] },
+          "framing": { "properties": { "ack_bytes": { "const": 64 } } }
+        }
+      },
+      "else": { "properties": { "framing": { "properties": { "ack_bytes": { "const": 0 } } } } }
+    }
+  ],
+  "$defs": {
+    "timestamp": { "type": "string", "format": "date-time", "pattern": "Z$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "git_commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "node": { "enum": ["A", "B", "C"] },
+    "producer": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "version", "executable_sha256", "qw5_commit", "dirty", "parameters"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "executable_sha256": { "$ref": "#/$defs/sha256" },
+        "qw5_commit": { "$ref": "#/$defs/git_commit" },
+        "dirty": { "type": "boolean" },
+        "parameters": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message"],
+      "properties": {
+        "code": { "type": "string", "pattern": "^[A-Z0-9_]+$" },
+        "message": { "type": "string", "minLength": 1 }
+      }
+    },
+    "node_digests": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["A", "B", "C"],
+      "properties": {
+        "A": { "$ref": "#/$defs/sha256" },
+        "B": { "$ref": "#/$defs/sha256" },
+        "C": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "flow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["flow_id", "source", "destination", "route_alias"],
+      "properties": {
+        "flow_id": { "type": "string", "pattern": "^[a-c]-[a-c]$" },
+        "source": { "$ref": "#/$defs/node" },
+        "destination": { "$ref": "#/$defs/node" },
+        "route_alias": { "type": "string", "pattern": "^[A-C]-[A-C]$" }
+      }
+    },
+    "scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scenario_id", "flows", "maximum_pre_attempt_control_rtt_ns", "maximum_coordinator_observed_start_window_ns"],
+      "properties": {
+        "scenario_id": {
+          "enum": [
+            "solo-a-b", "solo-b-a", "solo-a-c", "solo-c-a", "solo-b-c", "solo-c-b",
+            "duplex-a-b", "duplex-a-c", "duplex-b-c", "fanout-a", "fanout-b",
+            "fanout-c", "fanin-a", "fanin-b", "fanin-c", "cycle-a-b-c",
+            "cycle-a-c-b", "all-directed"
+          ]
+        },
+        "flows": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 6,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/flow" }
+        },
+        "maximum_pre_attempt_control_rtt_ns": { "const": 1000000 },
+        "maximum_coordinator_observed_start_window_ns": { "const": 10000000 }
+      }
+    },
+    "observation_integer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "method"],
+      "properties": {
+        "status": { "enum": ["available", "unavailable", "error"] },
+        "value": { "type": "integer", "minimum": 0 },
+        "method": { "type": "string", "minLength": 1 },
+        "error": { "$ref": "#/$defs/error" }
+      },
+      "oneOf": [
+        { "properties": { "status": { "const": "available" } }, "required": ["value"], "not": { "required": ["error"] } },
+        { "properties": { "status": { "const": "unavailable" } }, "not": { "anyOf": [{ "required": ["value"] }, { "required": ["error"] }] } },
+        { "properties": { "status": { "const": "error" } }, "required": ["error"], "not": { "required": ["value"] } }
+      ]
+    },
+    "observation_string": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "method"],
+      "properties": {
+        "status": { "enum": ["available", "unavailable", "error"] },
+        "value": { "type": "string", "minLength": 1 },
+        "method": { "type": "string", "minLength": 1 },
+        "error": { "$ref": "#/$defs/error" }
+      },
+      "oneOf": [
+        { "properties": { "status": { "const": "available" } }, "required": ["value"], "not": { "required": ["error"] } },
+        { "properties": { "status": { "const": "unavailable" } }, "not": { "anyOf": [{ "required": ["value"] }, { "required": ["error"] }] } },
+        { "properties": { "status": { "const": "error" } }, "required": ["error"], "not": { "required": ["value"] } }
+      ]
+    },
+    "socket_values": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tcp_nodelay", "send_buffer_bytes", "receive_buffer_bytes", "address_family", "congestion_control", "maximum_segment_bytes"],
+      "properties": {
+        "tcp_nodelay": { "type": "boolean" },
+        "send_buffer_bytes": { "type": "integer", "minimum": 1 },
+        "receive_buffer_bytes": { "type": "integer", "minimum": 1 },
+        "address_family": { "enum": ["ipv4", "ipv6"] },
+        "congestion_control": { "$ref": "#/$defs/observation_string" },
+        "maximum_segment_bytes": { "$ref": "#/$defs/observation_integer" }
+      }
+    },
+    "socket_setting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["flow_id", "endpoint", "requested", "effective"],
+      "properties": {
+        "flow_id": { "type": "string", "pattern": "^[a-c]-[a-c]$" },
+        "endpoint": { "$ref": "#/$defs/node" },
+        "requested": { "$ref": "#/$defs/socket_values" },
+        "effective": { "$ref": "#/$defs/socket_values" }
+      }
+    },
+    "synchronization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status", "method", "calibration_rounds", "coordinator_receipt_spread_ns",
+        "pre_attempt_control_rtt_max_ns", "worker_start_to_ack_max_ns",
+        "timer_resolution_allowance_ns", "coordinator_observed_start_window_ns",
+        "evidence_sha256"
+      ],
+      "properties": {
+        "status": { "enum": ["available", "not_required", "unavailable", "error"] },
+        "method": { "enum": ["coordinator_observed_window_v1", "not_required", "unavailable"] },
+        "calibration_rounds": { "type": ["integer", "null"], "minimum": 1 },
+        "coordinator_receipt_spread_ns": { "type": ["integer", "null"], "minimum": 0 },
+        "pre_attempt_control_rtt_max_ns": { "type": ["integer", "null"], "minimum": 0 },
+        "worker_start_to_ack_max_ns": { "type": ["integer", "null"], "minimum": 0 },
+        "timer_resolution_allowance_ns": { "type": ["integer", "null"], "minimum": 0 },
+        "coordinator_observed_start_window_ns": { "type": ["integer", "null"], "minimum": 0 },
+        "evidence_sha256": { "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] },
+        "error": { "$ref": "#/$defs/error" }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "status": { "const": "available" },
+            "method": { "const": "coordinator_observed_window_v1" },
+            "calibration_rounds": { "const": 100 },
+            "coordinator_receipt_spread_ns": { "type": "integer" },
+            "pre_attempt_control_rtt_max_ns": { "type": "integer" },
+            "worker_start_to_ack_max_ns": { "type": "integer" },
+            "timer_resolution_allowance_ns": { "type": "integer" },
+            "coordinator_observed_start_window_ns": { "type": "integer" },
+            "evidence_sha256": { "$ref": "#/$defs/sha256" }
+          },
+          "not": { "required": ["error"] }
+        },
+        {
+          "properties": {
+            "status": { "const": "not_required" }, "method": { "const": "not_required" },
+            "calibration_rounds": { "const": null }, "coordinator_receipt_spread_ns": { "const": null },
+            "pre_attempt_control_rtt_max_ns": { "const": null }, "worker_start_to_ack_max_ns": { "const": null },
+            "timer_resolution_allowance_ns": { "const": null },
+            "coordinator_observed_start_window_ns": { "const": null }, "evidence_sha256": { "const": null }
+          },
+          "not": { "required": ["error"] }
+        },
+        {
+          "properties": {
+            "status": { "const": "unavailable" }, "method": { "const": "unavailable" },
+            "calibration_rounds": { "const": null }, "coordinator_receipt_spread_ns": { "const": null },
+            "pre_attempt_control_rtt_max_ns": { "const": null }, "worker_start_to_ack_max_ns": { "const": null },
+            "timer_resolution_allowance_ns": { "const": null },
+            "coordinator_observed_start_window_ns": { "const": null }, "evidence_sha256": { "const": null }
+          },
+          "not": { "required": ["error"] }
+        },
+        {
+          "properties": {
+            "status": { "const": "error" }, "calibration_rounds": { "const": null },
+            "coordinator_receipt_spread_ns": { "const": null }, "pre_attempt_control_rtt_max_ns": { "const": null },
+            "worker_start_to_ack_max_ns": { "const": null }, "timer_resolution_allowance_ns": { "const": null },
+            "coordinator_observed_start_window_ns": { "const": null }
+          },
+          "required": ["error"]
+        }
+      ]
+    },
+    "thermal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node", "start_monotonic_ns", "end_monotonic_ns", "start_state", "end_state", "start_low_power_mode", "end_low_power_mode", "start_power_source", "end_power_source"],
+      "properties": {
+        "node": { "$ref": "#/$defs/node" },
+        "start_monotonic_ns": { "type": "integer", "minimum": 0 },
+        "end_monotonic_ns": { "type": "integer", "minimum": 0 },
+        "start_state": { "type": "string", "minLength": 1 },
+        "end_state": { "type": "string", "minLength": 1 },
+        "start_low_power_mode": { "type": "boolean" },
+        "end_low_power_mode": { "type": "boolean" },
+        "start_power_source": { "type": ["string", "null"] },
+        "end_power_source": { "type": ["string", "null"] }
+      }
+    },
+    "copy_stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["endpoint", "stage", "status", "evidence_class", "observation_method"],
+      "properties": {
+        "endpoint": { "$ref": "#/$defs/node" },
+        "stage": { "enum": ["producer_to_send", "send_to_transport", "transport_to_receive", "receive_to_consumer", "kernel_dma_hardware"] },
+        "status": { "enum": ["available", "unavailable", "error"] },
+        "evidence_class": { "enum": ["MEASURED", "SIMULATED", "ESTIMATED", null] },
+        "count": { "type": "integer", "minimum": 0 },
+        "bytes": { "type": "integer", "minimum": 0 },
+        "observation_method": { "type": "string", "minLength": 1 },
+        "error": { "$ref": "#/$defs/error" }
+      },
+      "oneOf": [
+        {
+          "properties": { "status": { "const": "available" }, "evidence_class": { "enum": ["MEASURED", "SIMULATED", "ESTIMATED"] } },
+          "required": ["count", "bytes"],
+          "not": { "required": ["error"] }
+        },
+        {
+          "properties": { "status": { "const": "unavailable" }, "evidence_class": { "const": null } },
+          "not": { "anyOf": [{ "required": ["count"] }, { "required": ["bytes"] }, { "required": ["error"] }] }
+        },
+        {
+          "properties": { "status": { "const": "error" }, "evidence_class": { "const": null } },
+          "required": ["error"],
+          "not": { "anyOf": [{ "required": ["count"] }, { "required": ["bytes"] }] }
+        }
+      ]
+    },
+    "flow_sample": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "flow_id", "source_monotonic_start_ns", "source_monotonic_end_ns",
+        "receiver_monotonic_start_ns", "receiver_monotonic_end_ns", "messages",
+        "logical_payload_bytes", "header_bytes", "digest_trailer_bytes", "ack_bytes",
+        "source_socket_bytes", "receiver_socket_bytes", "checksum_algorithm",
+        "checksum_count", "checksum_elapsed_ns", "sequence_first", "sequence_last",
+        "round_trip_ns", "copies", "errors"
+      ],
+      "properties": {
+        "flow_id": { "type": "string", "pattern": "^[a-c]-[a-c]$" },
+        "source_monotonic_start_ns": { "type": "integer", "minimum": 0 },
+        "source_monotonic_end_ns": { "type": "integer", "minimum": 0 },
+        "receiver_monotonic_start_ns": { "type": "integer", "minimum": 0 },
+        "receiver_monotonic_end_ns": { "type": "integer", "minimum": 0 },
+        "messages": { "type": "integer", "minimum": 0 },
+        "logical_payload_bytes": { "type": "integer", "minimum": 0 },
+        "header_bytes": { "type": "integer", "minimum": 0 },
+        "digest_trailer_bytes": { "type": "integer", "minimum": 0 },
+        "ack_bytes": { "type": "integer", "minimum": 0 },
+        "source_socket_bytes": { "$ref": "#/$defs/observation_integer" },
+        "receiver_socket_bytes": { "$ref": "#/$defs/observation_integer" },
+        "checksum_algorithm": { "const": "sha256" },
+        "checksum_count": { "type": "integer", "minimum": 0 },
+        "checksum_elapsed_ns": { "type": "integer", "minimum": 0 },
+        "sequence_first": { "type": "integer", "minimum": 0 },
+        "sequence_last": { "type": "integer", "minimum": 0 },
+        "round_trip_ns": { "type": "array", "items": { "type": "integer", "minimum": 1 } },
+        "copies": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/copy_stage" } },
+        "errors": { "type": "array", "items": { "$ref": "#/$defs/error" } }
+      }
+    },
+    "attempt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attempt_id", "phase", "attempt_index", "valid", "invalid_reasons",
+        "coordinator_release_at", "synchronization", "thermal", "flows", "errors"
+      ],
+      "properties": {
+        "attempt_id": { "type": "string", "pattern": "^(warmup|sample)-[0-9]{3}$" },
+        "phase": { "enum": ["warmup", "measurement"] },
+        "attempt_index": { "type": "integer", "minimum": 1 },
+        "valid": { "type": "boolean" },
+        "invalid_reasons": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^[A-Z0-9_]+$" } },
+        "coordinator_release_at": { "$ref": "#/$defs/timestamp" },
+        "synchronization": { "$ref": "#/$defs/synchronization" },
+        "thermal": { "type": "array", "minItems": 2, "maxItems": 3, "uniqueItems": true, "items": { "$ref": "#/$defs/thermal" } },
+        "flows": { "type": "array", "minItems": 1, "maxItems": 6, "uniqueItems": true, "items": { "$ref": "#/$defs/flow_sample" } },
+        "errors": { "type": "array", "items": { "$ref": "#/$defs/error" } }
+      },
+      "if": { "properties": { "valid": { "const": true } }, "required": ["valid"] },
+      "then": { "properties": { "invalid_reasons": { "maxItems": 0 }, "errors": { "maxItems": 0 } } },
+      "else": { "properties": { "invalid_reasons": { "minItems": 1 } } }
+    },
+    "metric_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sample_count", "median", "median_absolute_deviation", "p95", "minimum", "maximum", "unit"],
+      "properties": {
+        "sample_count": { "type": "integer", "minimum": 0 },
+        "median": { "type": ["integer", "null"], "minimum": 0 },
+        "median_absolute_deviation": { "type": ["integer", "null"], "minimum": 0 },
+        "p95": { "type": ["integer", "null"], "minimum": 0 },
+        "minimum": { "type": ["integer", "null"], "minimum": 0 },
+        "maximum": { "type": ["integer", "null"], "minimum": 0 },
+        "unit": { "enum": ["bytes_per_second", "ns"] }
+      }
+    },
+    "flow_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["flow_id", "valid_attempts", "invalid_attempts", "throughput", "round_trip_latency"],
+      "properties": {
+        "flow_id": { "type": "string", "pattern": "^[a-c]-[a-c]$" },
+        "valid_attempts": { "type": "integer", "minimum": 0 },
+        "invalid_attempts": { "type": "integer", "minimum": 0 },
+        "throughput": { "$ref": "#/$defs/metric_summary" },
+        "round_trip_latency": { "$ref": "#/$defs/metric_summary" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cell_status", "warmup_attempts", "measurement_attempts",
+        "valid_measurement_attempts", "invalid_measurement_attempts",
+        "replacement_attempts", "flow_summaries", "aggregate_throughput",
+        "regime_identities"
+      ],
+      "properties": {
+        "cell_status": { "enum": ["COMPLETE", "FAILED", "ABORTED", "UNDETERMINED"] },
+        "warmup_attempts": { "type": "integer", "minimum": 0 },
+        "measurement_attempts": { "type": "integer", "minimum": 0, "maximum": 12 },
+        "valid_measurement_attempts": { "type": "integer", "minimum": 0, "maximum": 10 },
+        "invalid_measurement_attempts": { "type": "integer", "minimum": 0, "maximum": 12 },
+        "replacement_attempts": { "type": "integer", "minimum": 0, "maximum": 2 },
+        "flow_summaries": { "type": "array", "minItems": 1, "maxItems": 6, "uniqueItems": true, "items": { "$ref": "#/$defs/flow_summary" } },
+        "aggregate_throughput": { "$ref": "#/$defs/metric_summary" },
+        "regime_identities": {
+          "type": "array", "maxItems": 3, "uniqueItems": true,
+          "items": { "$ref": "#/$defs/regime_identity" }
+        }
+      }
+    },
+    "regime_identity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["node", "thermal_state", "low_power_mode", "power_source"],
+      "properties": {
+        "node": { "$ref": "#/$defs/node" },
+        "thermal_state": { "type": "string", "minLength": 1 },
+        "low_power_mode": { "type": "boolean" },
+        "power_source": { "type": ["string", "null"] }
+      }
+    },
+    "exclusion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["attempt_id", "reason", "included_in_failure_rate"],
+      "properties": {
+        "attempt_id": { "type": "string", "pattern": "^(warmup|sample)-[0-9]{3}$" },
+        "reason": { "type": "string", "pattern": "^[A-Z0-9_]+$" },
+        "included_in_failure_rate": { "const": true }
+      }
+    }
+  }
+}

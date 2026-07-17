@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/anonymuse/QW5/schemas/v1/tb5-synchronization-evidence.schema.json",
+  "title": "QW5 Thunderbolt 5 empirical synchronization evidence v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "artifact_role", "evidence_class", "created_at", "producer",
+    "plan_sha256", "cell_id", "scenario_id", "attempt_id", "method", "coordinator",
+    "participants", "derived", "errors"
+  ],
+  "properties": {
+    "schema": { "const": "qw5.tb5-synchronization-evidence/v1" },
+    "artifact_role": { "enum": ["synchronization_evidence", "schema_fixture"] },
+    "evidence_class": { "enum": ["MEASURED", "SIMULATED"] },
+    "created_at": { "$ref": "#/$defs/timestamp" },
+    "producer": { "$ref": "#/$defs/producer" },
+    "plan_sha256": { "$ref": "#/$defs/sha256" },
+    "cell_id": { "type": "string", "pattern": "^stream:[a-z0-9-]+:[0-9]+$" },
+    "scenario_id": {
+      "enum": [
+        "duplex-a-b", "duplex-a-c", "duplex-b-c", "fanout-a", "fanout-b",
+        "fanout-c", "fanin-a", "fanin-b", "fanin-c", "cycle-a-b-c",
+        "cycle-a-c-b", "all-directed"
+      ]
+    },
+    "attempt_id": { "type": "string", "pattern": "^(warmup|sample)-[0-9]{3}$" },
+    "method": { "const": "coordinator_observed_window_v1" },
+    "coordinator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node", "clock_id", "clock_resolution_ns", "release_monotonic_ns"],
+      "properties": {
+        "node": { "$ref": "#/$defs/node" },
+        "clock_id": { "const": "mach_continuous_time" },
+        "clock_resolution_ns": { "type": "integer", "minimum": 1 },
+        "release_monotonic_ns": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "participants": {
+      "type": "array", "minItems": 2, "maxItems": 6, "uniqueItems": true,
+      "items": { "$ref": "#/$defs/participant" }
+    },
+    "derived": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pre_attempt_control_rtt_max_ns", "worker_start_to_ack_max_ns",
+        "timer_resolution_allowance_ns", "coordinator_receipt_spread_ns",
+        "coordinator_observed_start_window_ns", "inclusion_decision", "reasons"
+      ],
+      "properties": {
+        "pre_attempt_control_rtt_max_ns": { "type": "integer", "minimum": 0 },
+        "worker_start_to_ack_max_ns": { "type": "integer", "minimum": 0 },
+        "timer_resolution_allowance_ns": { "type": "integer", "minimum": 1 },
+        "coordinator_receipt_spread_ns": { "type": "integer", "minimum": 0 },
+        "coordinator_observed_start_window_ns": { "type": "integer", "minimum": 0 },
+        "inclusion_decision": { "enum": ["included", "excluded", "undetermined"] },
+        "reasons": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^[A-Z0-9_]+$" } }
+      }
+    },
+    "errors": { "type": "array", "items": { "$ref": "#/$defs/error" } }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "artifact_role": { "const": "synchronization_evidence" } }, "required": ["artifact_role"] },
+      "then": { "properties": { "evidence_class": { "const": "MEASURED" } } },
+      "else": { "properties": { "evidence_class": { "const": "SIMULATED" } } }
+    }
+  ],
+  "$defs": {
+    "timestamp": { "type": "string", "format": "date-time", "pattern": "Z$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "git_commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "node": { "enum": ["A", "B", "C"] },
+    "producer": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "version", "executable_sha256", "qw5_commit", "dirty", "parameters"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "executable_sha256": { "$ref": "#/$defs/sha256" },
+        "qw5_commit": { "$ref": "#/$defs/git_commit" },
+        "dirty": { "type": "boolean" },
+        "parameters": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "participant": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "flow_id", "worker_node", "worker_clock_id", "worker_clock_resolution_ns",
+        "pre_attempt_control_rtt_ns", "worker_start_to_ack_ns", "coordinator_ack_receipt_ns"
+      ],
+      "properties": {
+        "flow_id": { "type": "string", "pattern": "^[a-c]-[a-c]$" },
+        "worker_node": { "$ref": "#/$defs/node" },
+        "worker_clock_id": { "const": "mach_continuous_time" },
+        "worker_clock_resolution_ns": { "type": "integer", "minimum": 1 },
+        "pre_attempt_control_rtt_ns": {
+          "type": "array", "minItems": 100, "maxItems": 100,
+          "items": { "type": "integer", "minimum": 1 }
+        },
+        "worker_start_to_ack_ns": { "type": "integer", "minimum": 0 },
+        "coordinator_ack_receipt_ns": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "error": {
+      "type": "object", "additionalProperties": false,
+      "required": ["code", "message"],
+      "properties": {
+        "code": { "type": "string", "pattern": "^[A-Z0-9_]+$" },
+        "message": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

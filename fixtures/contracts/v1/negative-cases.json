@@ -1,0 +1,684 @@
+{
+  "schema": "qw5.contract-negative-cases/v1",
+  "cases": [
+    {
+      "case_id": "hardware-fact-type-bound-to-id",
+      "base_fixture": "hardware-inventory.valid.json",
+      "schema": "qw5.hardware-inventory/v1",
+      "operations": [{"op": "replace", "path": "/facts/memory.physical_bytes/value", "value": false}],
+      "expected_error": "SCHEMA"
+    },
+    {
+      "case_id": "common-timestamp-must-be-valid-utc-rfc3339",
+      "base_fixture": "hardware-inventory.valid.json",
+      "schema": "qw5.hardware-inventory/v1",
+      "operations": [{"op": "replace", "path": "/collection/started_at", "value": "2000-99-99T99:99:99Z"}],
+      "expected_error": "SCHEMA_FORMAT"
+    },
+    {
+      "case_id": "hardware-fact-unit-bound-to-id",
+      "base_fixture": "hardware-inventory.valid.json",
+      "schema": "qw5.hardware-inventory/v1",
+      "operations": [{"op": "replace", "path": "/facts/memory.physical_bytes/unit", "value": "none"}],
+      "expected_error": "SCHEMA"
+    },
+    {
+      "case_id": "hardware-duplicate-source-id",
+      "base_fixture": "hardware-inventory.valid.json",
+      "schema": "qw5.hardware-inventory/v1",
+      "operations": [{"op": "add", "path": "/sources/-", "value": {"source_id": "fixture.api", "kind": "api", "name": "Second source", "provider": "QW5", "version": "1", "description": "Different object with a duplicate stable ID."}}],
+      "expected_error": "HW_SOURCE_ID_UNIQUE"
+    },
+    {
+      "case_id": "hardware-unknown-source-reference",
+      "base_fixture": "hardware-inventory.valid.json",
+      "schema": "qw5.hardware-inventory/v1",
+      "operations": [{"op": "replace", "path": "/facts/os.build/source_ref", "value": "missing.api"}],
+      "expected_error": "HW_SOURCE_REFERENCE"
+    },
+    {
+      "case_id": "hardware-self-link",
+      "base_fixture": "hardware-inventory.valid.json",
+      "schema": "qw5.hardware-inventory/v1",
+      "operations": [{"op": "replace", "path": "/links/0/peer_alias", "value": "A"}],
+      "expected_error": "HW_LINK_SELF"
+    },
+    {
+      "case_id": "hardware-link-error-requires-error",
+      "base_fixture": "hardware-inventory.valid.json",
+      "schema": "qw5.hardware-inventory/v1",
+      "operations": [{"op": "replace", "path": "/links/0/status", "value": "error"}],
+      "expected_error": "SCHEMA"
+    },
+    {
+      "case_id": "hardware-empty-links-require-collection-error",
+      "base_fixture": "hardware-inventory.valid.json",
+      "schema": "qw5.hardware-inventory/v1",
+      "operations": [{"op": "replace", "path": "/links", "value": []}],
+      "expected_error": "SCHEMA"
+    },
+    {
+      "case_id": "tb-plan-duplicate-scenario-id",
+      "base_fixture": "tb5-run-plan.valid.json",
+      "schema": "qw5.tb5-run-plan/v1",
+      "operations": [{"op": "replace", "path": "/matrix/scenarios/1/scenario_id", "value": "solo-a-b"}],
+      "expected_error": "TB_PLAN_SCENARIO_COVERAGE"
+    },
+    {
+      "case_id": "tb-plan-scenario-flow-coverage",
+      "base_fixture": "tb5-run-plan.valid.json",
+      "schema": "qw5.tb5-run-plan/v1",
+      "operations": [{"op": "remove", "path": "/matrix/scenarios/17/flows/5"}],
+      "expected_error": "TB_SCENARIO_FLOW_SET"
+    },
+    {
+      "case_id": "tb-plan-cell-count",
+      "base_fixture": "tb5-run-plan.valid.json",
+      "schema": "qw5.tb5-run-plan/v1",
+      "operations": [{"op": "replace", "path": "/matrix/planned_cell_count", "value": 245}],
+      "expected_error": "SCHEMA"
+    },
+    {
+      "case_id": "tb-plan-rejects-cyclic-local-control-digest",
+      "base_fixture": "tb5-run-plan.valid.json",
+      "schema": "qw5.tb5-run-plan/v1",
+      "operations": [{"op": "add", "path": "/identity/local_control_index_sha256", "value": "abababababababababababababababababababababababababababababababab"}],
+      "expected_error": "SCHEMA"
+    },
+    {
+      "case_id": "tb-route-six-flow-coverage",
+      "base_fixture": "tb5-route-proof.valid.json",
+      "schema": "qw5.tb5-route-proof/v1",
+      "operations": [{"op": "replace", "path": "/routes/1/flow_id", "value": "a-b"}],
+      "expected_error": "TB_ROUTE_COVERAGE"
+    },
+    {
+      "case_id": "tb-route-flow-mapping",
+      "base_fixture": "tb5-route-proof.valid.json",
+      "schema": "qw5.tb5-route-proof/v1",
+      "operations": [{"op": "replace", "path": "/routes/0/destination", "value": "A"}],
+      "expected_error": "TB_FLOW_MAPPING"
+    },
+    {
+      "case_id": "tb-route-path-update-rejects-verification",
+      "base_fixture": "tb5-route-proof.valid.json",
+      "schema": "qw5.tb5-route-proof/v1",
+      "operations": [{"op": "replace", "path": "/routes/0/path_update_observed", "value": true}],
+      "expected_error": "SCHEMA"
+    },
+    {
+      "case_id": "tb-measurement-scenario-flow-coupling",
+      "base_fixture": "tb5-measurement.valid.json",
+      "schema": "qw5.tb5-measurement/v1",
+      "operations": [{"op": "replace", "path": "/scenario/scenario_id", "value": "all-directed"}],
+      "expected_error": "TB_SCENARIO_FLOW_SET"
+    },
+    {
+      "case_id": "tb-measurement-schedule-index-from-seed",
+      "base_fixture": "tb5-measurement.valid.json",
+      "schema": "qw5.tb5-measurement/v1",
+      "operations": [{"op": "replace", "path": "/schedule_index", "value": 0}],
+      "expected_error": "TB_SCHEDULE_INDEX"
+    },
+    {
+      "case_id": "tb-round-trip-limited-to-solo",
+      "base_fixture": "tb5-round-trip-measurement.valid.json",
+      "schema": "qw5.tb5-measurement/v1",
+      "operations": [{"op": "replace", "path": "/scenario/scenario_id", "value": "duplex-a-b"}],
+      "expected_error": "TB_ROUND_TRIP_SCOPE"
+    },
+    {
+      "case_id": "tb-round-trip-exchange-count",
+      "base_fixture": "tb5-round-trip-measurement.valid.json",
+      "schema": "qw5.tb5-measurement/v1",
+      "operations": [{"op": "remove", "path": "/attempts/1/flows/0/round_trip_ns/99"}],
+      "expected_error": "TB_ROUND_TRIP_COUNT"
+    },
+    {
+      "case_id": "tb-valid-sample-requires-messages",
+      "base_fixture": "tb5-measurement.valid.json",
+      "schema": "qw5.tb5-measurement/v1",
+      "operations": [{"op": "replace", "path": "/attempts/3/flows/0/messages", "value": 0}],
+      "expected_error": "TB_VALID_MESSAGES"
+    },
+    {
+      "case_id": "tb-checksum-count-reconciles",
+      "base_fixture": "tb5-measurement.valid.json",
+      "schema": "qw5.tb5-measurement/v1",
+      "operations": [{"op": "replace", "path": "/attempts/3/flows/0/checksum_count", "value": 0}],
+      "expected_error": "TB_BYTE_RECONCILIATION"
+    },
+    {
+      "case_id": "tb-sequence-range-reconciles",
+      "base_fixture": "tb5-measurement.valid.json",
+      "schema": "qw5.tb5-measurement/v1",
+      "operations": [{"op": "replace", "path": "/attempts/3/flows/0/sequence_last", "value": 2}],
+      "expected_error": "TB_SEQUENCE_RANGE"
+    },
+    {
+      "case_id": "tb-socket-bytes-reconcile",
+      "base_fixture": "tb5-measurement.valid.json",
+      "schema": "qw5.tb5-measurement/v1",
+      "operations": [{"op": "replace", "path": "/attempts/3/flows/0/source_socket_bytes/value", "value": 159}],
+      "expected_error": "TB_SOCKET_BYTE_RECONCILIATION"
+    },
+    {
+      "case_id": "tb-copy-stage-coverage",
+      "base_fixture": "tb5-measurement.valid.json",
+      "schema": "qw5.tb5-measurement/v1",
+      "operations": [{"op": "remove", "path": "/attempts/3/flows/0/copies/5"}],
+      "expected_error": "TB_COPY_COVERAGE"
+    },
+    {
+      "case_id": "tb-copy-byte-reconciliation",
+      "base_fixture": "tb5-measurement.valid.json",
+      "schema": "qw5.tb5-measurement/v1",
+      "operations": [{"op": "replace", "path": "/attempts/3/flows/0/copies/0/bytes", "value": 63}],
+      "expected_error": "TB_COPY_RECONCILIATION"
+    },
+    {
+      "case_id": "tb-endpoint-monotonic-time",
+      "base_fixture": "tb5-measurement.valid.json",
+      "schema": "qw5.tb5-measurement/v1",
+      "operations": [{"op": "replace", "path": "/attempts/3/flows/0/receiver_monotonic_end_ns", "value": 8000000000}],
+      "expected_error": "TB_ENDPOINT_TIME"
+    },
+    {
+      "case_id": "tb-complete-status-requires-ten-valid",
+      "base_fixture": "tb5-measurement.valid.json",
+      "schema": "qw5.tb5-measurement/v1",
+      "operations": [{"op": "replace", "path": "/summary/cell_status", "value": "COMPLETE"}],
+      "expected_error": "TB_COMPLETE_STATUS"
+    },
+    {
+      "case_id": "tb-flow-summary-metric-reconciles",
+      "base_fixture": "tb5-measurement.valid.json",
+      "schema": "qw5.tb5-measurement/v1",
+      "operations": [{"op": "replace", "path": "/summary/flow_summaries/0/throughput/median", "value": 22}],
+      "expected_error": "TB_FLOW_SUMMARY_METRIC"
+    },
+    {
+      "case_id": "tb-aggregate-summary-reconciles",
+      "base_fixture": "tb5-measurement.valid.json",
+      "schema": "qw5.tb5-measurement/v1",
+      "operations": [{"op": "replace", "path": "/summary/aggregate_throughput/maximum", "value": 22}],
+      "expected_error": "TB_AGGREGATE_SUMMARY"
+    },
+    {
+      "case_id": "tb-regime-summary-reconciles",
+      "base_fixture": "tb5-measurement.valid.json",
+      "schema": "qw5.tb5-measurement/v1",
+      "operations": [{"op": "replace", "path": "/summary/regime_identities/0/thermal_state", "value": "invented"}],
+      "expected_error": "TB_REGIME_SUMMARY"
+    },
+    {
+      "case_id": "tb-rejects-mixed-regime-pooling",
+      "base_fixture": "tb5-measurement.valid.json",
+      "schema": "qw5.tb5-measurement/v1",
+      "operations": [
+        {"op": "copy", "from": "/attempts/3", "path": "/attempts/-"},
+        {"op": "replace", "path": "/attempts/4/attempt_id", "value": "sample-002"},
+        {"op": "replace", "path": "/attempts/4/attempt_index", "value": 2},
+        {"op": "replace", "path": "/attempts/4/thermal/0/start_power_source", "value": "battery"},
+        {"op": "replace", "path": "/attempts/4/thermal/0/end_power_source", "value": "battery"}
+      ],
+      "expected_error": "TB_REGIME_MIXED"
+    },
+    {
+      "case_id": "tb-sync-derived-window-reconciles",
+      "base_fixture": "tb5-synchronization-evidence.valid.json",
+      "schema": "qw5.tb5-synchronization-evidence/v1",
+      "operations": [{"op": "replace", "path": "/derived/coordinator_observed_start_window_ns", "value": 1}],
+      "expected_error": "TB_SYNC_RECONCILIATION"
+    },
+    {
+      "case_id": "tb-sync-rejects-unsupported-upper-bound",
+      "base_fixture": "tb5-synchronization-evidence.valid.json",
+      "schema": "qw5.tb5-synchronization-evidence/v1",
+      "operations": [{"op": "add", "path": "/derived/start_skew_upper_bound_ns", "value": 4620150}],
+      "expected_error": "SCHEMA"
+    },
+    {
+      "case_id": "tb-sync-threshold-controls-inclusion",
+      "base_fixture": "tb5-synchronization-evidence.valid.json",
+      "schema": "qw5.tb5-synchronization-evidence/v1",
+      "operations": [{"op": "replace", "path": "/derived/inclusion_decision", "value": "excluded"}],
+      "expected_error": "TB_SYNC_DECISION"
+    },
+    {
+      "case_id": "tb-physical-measured-rejects-dirty-identity",
+      "base_fixture": "tb5-measurement.valid.json",
+      "schema": "qw5.tb5-measurement/v1",
+      "operations": [
+        {"op": "replace", "path": "/artifact_role", "value": "measurement"},
+        {"op": "replace", "path": "/evidence_class", "value": "MEASURED"},
+        {"op": "replace", "path": "/identity/dirty", "value": true}
+      ],
+      "expected_error": "TB_MEASURED_DIRTY"
+    },
+    {
+      "case_id": "tb-application-buffer-reconciles",
+      "base_fixture": "tb5-measurement.valid.json",
+      "schema": "qw5.tb5-measurement/v1",
+      "operations": [{"op": "replace", "path": "/application_buffers/peak_application_payload_buffer_bytes", "value": 127}],
+      "expected_error": "TB_APPLICATION_BUFFER_RECONCILIATION"
+    },
+    {
+      "case_id": "tb-local-control-complete-requires-ten-recorded",
+      "base_fixture": "tb5-local-control.valid.json",
+      "schema": "qw5.tb5-local-control/v1",
+      "operations": [{"op": "remove", "path": "/recorded_elapsed_ns/9"}],
+      "expected_error": "SCHEMA"
+    },
+    {
+      "case_id": "tb-local-control-failure-retains-error",
+      "base_fixture": "tb5-local-control.valid.json",
+      "schema": "qw5.tb5-local-control/v1",
+      "operations": [{"op": "replace", "path": "/status", "value": "FAILED"}],
+      "expected_error": "SCHEMA"
+    },
+    {
+      "case_id": "tb-local-control-rejects-regime-transition",
+      "base_fixture": "tb5-local-control.valid.json",
+      "schema": "qw5.tb5-local-control/v1",
+      "operations": [{"op": "replace", "path": "/regime/end_power_source", "value": "battery"}],
+      "expected_error": "TB_CONTROL_REGIME_TRANSITION"
+    },
+    {
+      "case_id": "tb-local-control-index-rejects-legacy-canonical-profile",
+      "base_fixture": "tb5-local-control-index.valid.json",
+      "schema": "qw5.tb5-local-control-index/v1",
+      "operations": [{"op": "replace", "path": "/canonical_profile", "value": "qw5-canonical-json-v1"}],
+      "expected_error": "SCHEMA"
+    },
+    {
+      "case_id": "tb-measurement-index-rejects-legacy-canonical-profile",
+      "base_fixture": "tb5-measurement-index.valid.json",
+      "schema": "qw5.tb5-measurement-index/v1",
+      "operations": [{"op": "replace", "path": "/canonical_profile", "value": "qw5-canonical-json-v1"}],
+      "expected_error": "SCHEMA"
+    },
+    {
+      "case_id": "tb-stream-source-target-enforced",
+      "base_fixture": "tb5-measurement.valid.json",
+      "schema": "qw5.tb5-measurement/v1",
+      "operations": [{"op": "replace", "path": "/attempts/3/flows/0/source_monotonic_end_ns", "value": 11900000000}],
+      "expected_error": "TB_STREAM_DURATION"
+    },
+    {
+      "case_id": "tb-stream-maximum-duration-enforced",
+      "base_fixture": "tb5-measurement.valid.json",
+      "schema": "qw5.tb5-measurement/v1",
+      "operations": [{"op": "replace", "path": "/attempts/3/flows/0/source_monotonic_end_ns", "value": 40000000001}],
+      "expected_error": "TB_STREAM_CAP"
+    },
+    {
+      "case_id": "model-revision-must-be-immutable",
+      "base_fixture": "model-artifact-manifest.valid.json",
+      "schema": "qw5.model-artifact-manifest/v1",
+      "operations": [{"op": "replace", "path": "/repository/immutable_revision", "value": "main"}],
+      "expected_error": "SCHEMA"
+    },
+    {
+      "case_id": "model-complete-cannot-contain-missing-file",
+      "base_fixture": "model-artifact-manifest.valid.json",
+      "schema": "qw5.model-artifact-manifest/v1",
+      "operations": [
+        {"op": "replace", "path": "/files/1/status", "value": "missing"},
+        {"op": "remove", "path": "/files/1/size_bytes"},
+        {"op": "remove", "path": "/files/1/sha256"},
+        {"op": "replace", "path": "/files/1/verification_passes", "value": []}
+      ],
+      "expected_error": "SCHEMA"
+    },
+    {
+      "case_id": "model-second-pass-must-match",
+      "base_fixture": "model-artifact-manifest.valid.json",
+      "schema": "qw5.model-artifact-manifest/v1",
+      "operations": [{"op": "replace", "path": "/files/1/verification_passes/1/sha256", "value": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"}],
+      "expected_error": "MODEL_HASH_PASS_MISMATCH"
+    },
+    {
+      "case_id": "model-second-pass-time-order",
+      "base_fixture": "model-artifact-manifest.valid.json",
+      "schema": "qw5.model-artifact-manifest/v1",
+      "operations": [{"op": "replace", "path": "/files/1/verification_passes/1/completed_at", "value": "1999-12-31T23:59:59Z"}],
+      "expected_error": "MODEL_HASH_PASS_TIME"
+    },
+    {
+      "case_id": "model-file-paths-unique",
+      "base_fixture": "model-artifact-manifest.valid.json",
+      "schema": "qw5.model-artifact-manifest/v1",
+      "operations": [{"op": "replace", "path": "/files/3/path", "value": "config.json"}],
+      "expected_error": "MODEL_FILE_PATH_UNIQUE"
+    },
+    {
+      "case_id": "model-completeness-count-reconciles",
+      "base_fixture": "model-artifact-manifest.valid.json",
+      "schema": "qw5.model-artifact-manifest/v1",
+      "operations": [{"op": "replace", "path": "/completeness/verified_file_count", "value": 3}],
+      "expected_error": "MODEL_VERIFIED_COUNT"
+    },
+    {
+      "case_id": "model-file-table-matches-frozen-expected-paths",
+      "base_fixture": "model-artifact-manifest.valid.json",
+      "schema": "qw5.model-artifact-manifest/v1",
+      "operations": [{"op": "remove", "path": "/selection/expected_paths/3"}],
+      "expected_error": "MODEL_EXPECTED_PATHS"
+    },
+    {
+      "case_id": "model-acquisition-plan-requires-role-complete-components",
+      "base_fixture": "model-acquisition-plan.valid.json",
+      "schema": "qw5.model-acquisition-plan/v1",
+      "operations": [
+        {"op": "replace", "path": "/expected_files/2/role", "value": "other"},
+        {"op": "replace", "path": "/expected_files/2/components", "value": ["configuration"]}
+      ],
+      "expected_error": "MODEL_PLAN_ROLE_COVERAGE"
+    },
+    {
+      "case_id": "model-complete-rejects-config-only-selection",
+      "base_fixture": "model-artifact-manifest.valid.json",
+      "schema": "qw5.model-artifact-manifest/v1",
+      "operations": [
+        {"op": "replace", "path": "/selection/components", "value": ["configuration"]},
+        {"op": "replace", "path": "/selection/expected_paths", "value": ["config.json"]},
+        {"op": "remove", "path": "/files/3"},
+        {"op": "remove", "path": "/files/2"},
+        {"op": "remove", "path": "/files/0"},
+        {"op": "replace", "path": "/completeness/verified_file_count", "value": 1},
+        {"op": "replace", "path": "/completeness/verified_total_bytes", "value": 2}
+      ],
+      "expected_error": "MODEL_ROLE_COMPONENTS"
+    },
+    {
+      "case_id": "tensor-names-unique",
+      "base_fixture": "tensor-inventory.valid.json",
+      "schema": "qw5.tensor-inventory/v1",
+      "operations": [{"op": "replace", "path": "/tensors/1/name", "value": "fixture.embedding"}],
+      "expected_error": "TENSOR_NAME_UNIQUE"
+    },
+    {
+      "case_id": "tensor-source-file-reference",
+      "base_fixture": "tensor-inventory.valid.json",
+      "schema": "qw5.tensor-inventory/v1",
+      "operations": [{"op": "replace", "path": "/tensors/1/source_file", "value": "missing.safetensors"}],
+      "expected_error": "TENSOR_SOURCE_REFERENCE"
+    },
+    {
+      "case_id": "tensor-range-order",
+      "base_fixture": "tensor-inventory.valid.json",
+      "schema": "qw5.tensor-inventory/v1",
+      "operations": [{"op": "replace", "path": "/tensors/1/data_offsets", "value": [16, 8]}],
+      "expected_error": "TENSOR_RANGE_ORDER"
+    },
+    {
+      "case_id": "tensor-range-overlap",
+      "base_fixture": "tensor-inventory.valid.json",
+      "schema": "qw5.tensor-inventory/v1",
+      "operations": [{"op": "replace", "path": "/tensors/1/data_offsets", "value": [4, 12]}],
+      "expected_error": "TENSOR_RANGE_OVERLAP"
+    },
+    {
+      "case_id": "tensor-range-hole",
+      "base_fixture": "tensor-inventory.valid.json",
+      "schema": "qw5.tensor-inventory/v1",
+      "operations": [
+        {"op": "replace", "path": "/source_files/0/data_bytes", "value": 17},
+        {"op": "replace", "path": "/source_files/0/size_bytes", "value": 33},
+        {"op": "replace", "path": "/tensors/1/data_offsets", "value": [9, 17]}
+      ],
+      "expected_error": "TENSOR_RANGE_HOLE"
+    },
+    {
+      "case_id": "tensor-shape-element-count",
+      "base_fixture": "tensor-inventory.valid.json",
+      "schema": "qw5.tensor-inventory/v1",
+      "operations": [{"op": "replace", "path": "/tensors/1/shape", "value": [3, 2]}],
+      "expected_error": "TENSOR_ELEMENT_COUNT"
+    },
+    {
+      "case_id": "tensor-scalar-element-count-is-one",
+      "base_fixture": "tensor-inventory.valid.json",
+      "schema": "qw5.tensor-inventory/v1",
+      "operations": [{"op": "replace", "path": "/tensors/2/element_count", "value": 0}],
+      "expected_error": "TENSOR_ELEMENT_COUNT"
+    },
+    {
+      "case_id": "tensor-scalar-byte-count-reconciles",
+      "base_fixture": "tensor-inventory.valid.json",
+      "schema": "qw5.tensor-inventory/v1",
+      "operations": [{"op": "replace", "path": "/tensors/2/stored_bytes", "value": 1}],
+      "expected_error": "TENSOR_STORED_BYTES"
+    },
+    {
+      "case_id": "tensor-scalar-offset-reconciles",
+      "base_fixture": "tensor-inventory.valid.json",
+      "schema": "qw5.tensor-inventory/v1",
+      "operations": [{"op": "replace", "path": "/tensors/2/data_offsets", "value": [16, 17]}],
+      "expected_error": "TENSOR_RANGE_SIZE"
+    },
+    {
+      "case_id": "tensor-totals-reconcile",
+      "base_fixture": "tensor-inventory.valid.json",
+      "schema": "qw5.tensor-inventory/v1",
+      "operations": [{"op": "replace", "path": "/totals/tensor_payload_bytes", "value": 15}],
+      "expected_error": "TENSOR_TOTAL_RECONCILIATION"
+    },
+    {
+      "case_id": "tensor-alias-reference",
+      "base_fixture": "tensor-inventory.valid.json",
+      "schema": "qw5.tensor-inventory/v1",
+      "operations": [{"op": "replace", "path": "/tensors/1/alias_of", "value": "missing.owner"}],
+      "expected_error": "TENSOR_ALIAS_REFERENCE"
+    },
+    {
+      "case_id": "placement-size-reconciliation",
+      "base_fixture": "placement-analysis.valid.json",
+      "schema": "qw5.placement-analysis/v1",
+      "operations": [{"op": "replace", "path": "/size_reconciliation/total_bytes", "value": 9}],
+      "expected_error": "PLACEMENT_SIZE_RECONCILIATION"
+    },
+    {
+      "case_id": "placement-graph-passed-gate-requires-accepted-evidence",
+      "base_fixture": "placement-evidence-graph.valid.json",
+      "schema": "qw5.placement-evidence-graph/v1",
+      "operations": [{"op": "replace", "path": "/nodes/0/acceptance_status", "value": "owner_approval_required"}],
+      "expected_error": "PLACEMENT_GRAPH_GATE_ACCEPTANCE"
+    },
+    {
+      "case_id": "placement-graph-passed-gate-requires-corresponding-evidence",
+      "base_fixture": "placement-evidence-graph.valid.json",
+      "schema": "qw5.placement-evidence-graph/v1",
+      "operations": [{"op": "replace", "path": "/gate_resolutions/0/evidence_node_ids", "value": ["gate-rule-set"]}],
+      "expected_error": "PLACEMENT_GRAPH_GATE_BINDING"
+    },
+    {
+      "case_id": "placement-budget-formula",
+      "base_fixture": "placement-analysis.valid.json",
+      "schema": "qw5.placement-analysis/v1",
+      "operations": [{"op": "replace", "path": "/node_budgets/0/placement_budget_bytes", "value": 17}],
+      "expected_error": "PLACEMENT_BUDGET_FORMULA"
+    },
+    {
+      "case_id": "placement-allocation-reconciliation",
+      "base_fixture": "placement-analysis.valid.json",
+      "schema": "qw5.placement-analysis/v1",
+      "operations": [{"op": "replace", "path": "/node_budgets/0/allocated_bytes", "value": 7}],
+      "expected_error": "PLACEMENT_ALLOCATION_RECONCILIATION"
+    },
+    {
+      "case_id": "placement-gates-disjoint",
+      "base_fixture": "placement-analysis.valid.json",
+      "schema": "qw5.placement-analysis/v1",
+      "operations": [{"op": "add", "path": "/decision/unresolved_gates/-", "value": "memory_nonnegative"}],
+      "expected_error": "PLACEMENT_GATE_DISJOINT"
+    },
+    {
+      "case_id": "placement-gates-exhaustive",
+      "base_fixture": "placement-analysis.valid.json",
+      "schema": "qw5.placement-analysis/v1",
+      "operations": [{"op": "remove", "path": "/decision/not_applicable_gates/1"}],
+      "expected_error": "PLACEMENT_GATE_COVERAGE"
+    },
+    {
+      "case_id": "placement-go-rejects-unresolved-gates",
+      "base_fixture": "placement-analysis.valid.json",
+      "schema": "qw5.placement-analysis/v1",
+      "operations": [{"op": "replace", "path": "/decision/outcome", "value": "GO"}],
+      "expected_error": "SCHEMA"
+    },
+    {
+      "case_id": "placement-producer-cannot-assert-go-without-resolved-graph",
+      "base_fixture": "placement-analysis.valid.json",
+      "schema": "qw5.placement-analysis/v1",
+      "operations": [
+        {"op": "replace", "path": "/decision/outcome", "value": "GO"},
+        {"op": "replace", "path": "/decision/passed_gates", "value": ["artifact_complete", "tensor_reconciled", "layout_complete", "memory_baseline_accepted", "memory_nonnegative", "quality_available", "scratch_bounded", "state_bounded"]},
+        {"op": "replace", "path": "/decision/unresolved_gates", "value": []},
+        {"op": "replace", "path": "/decision/next_permitted_task", "value": "forbidden-next-task"},
+        {"op": "replace", "path": "/decision/gate_evaluations/5/disposition", "value": "passed"},
+        {"op": "replace", "path": "/decision/gate_evaluations/5/evidence_node_ids", "value": ["gate-rule-set"]},
+        {"op": "replace", "path": "/decision/gate_evaluations/6/disposition", "value": "passed"},
+        {"op": "replace", "path": "/decision/gate_evaluations/6/evidence_node_ids", "value": ["gate-rule-set"]},
+        {"op": "replace", "path": "/decision/gate_evaluations/7/disposition", "value": "passed"},
+        {"op": "replace", "path": "/decision/gate_evaluations/7/evidence_node_ids", "value": ["gate-rule-set"]}
+      ],
+      "expected_error": "PLACEMENT_GO_REQUIRES_RESOLVED_GRAPH"
+    },
+    {
+      "case_id": "placement-go-rejects-negative-headroom",
+      "base_fixture": "placement-analysis.valid.json",
+      "schema": "qw5.placement-analysis/v1",
+      "operations": [
+        {"op": "replace", "path": "/decision/outcome", "value": "GO"},
+        {"op": "replace", "path": "/decision/passed_gates", "value": ["artifact_complete", "tensor_reconciled", "layout_complete", "memory_baseline_accepted", "memory_nonnegative", "quality_available", "scratch_bounded", "state_bounded", "transport_profile_available", "text_subset_proven"]},
+        {"op": "replace", "path": "/decision/unresolved_gates", "value": []},
+        {"op": "replace", "path": "/decision/next_permitted_task", "value": "forbidden-next-task"},
+        {"op": "replace", "path": "/node_budgets/0/headroom_bytes", "value": -1}
+      ],
+      "expected_error": "PLACEMENT_GO_GATES"
+    },
+    {
+      "case_id": "placement-text-subset-requires-proof",
+      "base_fixture": "placement-analysis.valid.json",
+      "schema": "qw5.placement-analysis/v1",
+      "operations": [{"op": "replace", "path": "/model/component_scope", "value": "text_execution_subset"}],
+      "expected_error": "PLACEMENT_TEXT_SUBSET_PROOF"
+    },
+    {
+      "case_id": "placement-rejects-missing-lineage-identity",
+      "base_fixture": "placement-analysis.valid.json",
+      "schema": "qw5.placement-analysis/v1",
+      "operations": [{"op": "remove", "path": "/inputs/solver_objective"}],
+      "expected_error": "SCHEMA"
+    },
+    {
+      "case_id": "placement-rejects-missing-gate-rule-lineage",
+      "base_fixture": "placement-analysis.valid.json",
+      "schema": "qw5.placement-analysis/v1",
+      "operations": [{"op": "remove", "path": "/inputs/gate_rule_set"}],
+      "expected_error": "SCHEMA"
+    },
+    {
+      "case_id": "placement-rejects-missing-candidate-lineage",
+      "base_fixture": "placement-analysis.valid.json",
+      "schema": "qw5.placement-analysis/v1",
+      "operations": [{"op": "remove", "path": "/inputs/placement_candidate_set"}],
+      "expected_error": "SCHEMA"
+    },
+    {
+      "case_id": "placement-passed-gate-requires-evidence",
+      "base_fixture": "placement-analysis.valid.json",
+      "schema": "qw5.placement-analysis/v1",
+      "operations": [{"op": "replace", "path": "/decision/gate_evaluations/0/evidence_node_ids", "value": []}],
+      "expected_error": "PLACEMENT_GATE_EVIDENCE"
+    },
+    {
+      "case_id": "placement-not-applicable-gate-rejects-success-evidence",
+      "base_fixture": "placement-analysis.valid.json",
+      "schema": "qw5.placement-analysis/v1",
+      "operations": [{"op": "replace", "path": "/decision/gate_evaluations/8/evidence_node_ids", "value": ["gate-rule-set"]}],
+      "expected_error": "PLACEMENT_GATE_EVIDENCE"
+    },
+    {
+      "case_id": "placement-rejects-bad-text-subset-na",
+      "base_fixture": "placement-analysis.valid.json",
+      "schema": "qw5.placement-analysis/v1",
+      "operations": [
+        {"op": "replace", "path": "/model/component_scope", "value": "text_execution_subset"},
+        {"op": "copy", "from": "/inputs/formula_set", "path": "/inputs/text_subset_dependency"},
+        {"op": "replace", "path": "/inputs/text_subset_dependency/schema", "value": "qw5.text-subset-dependency/v1"}
+      ],
+      "expected_error": "PLACEMENT_TEXT_SUBSET_APPLICABILITY"
+    },
+    {
+      "case_id": "placement-network-edge-requires-link-summary",
+      "base_fixture": "placement-analysis.valid.json",
+      "schema": "qw5.placement-analysis/v1",
+      "operations": [{"op": "add", "path": "/network_edges/-", "value": {"source": "A", "destination": "B", "message_class": "control", "payload_bytes": 64, "messages_per_million_tokens": 1, "link_summary_sha256": "abababababababababababababababababababababababababababababababab"}}],
+      "expected_error": "PLACEMENT_LINK_INPUT"
+    },
+    {
+      "case_id": "placement-rejects-vacuous-go",
+      "base_fixture": "placement-analysis.valid.json",
+      "schema": "qw5.placement-analysis/v1",
+      "operations": [
+        {"op": "replace", "path": "/decision/outcome", "value": "GO"},
+        {"op": "replace", "path": "/decision/unresolved_gates", "value": []},
+        {"op": "replace", "path": "/decision/applicable_gates", "value": ["artifact_complete", "tensor_reconciled", "layout_complete", "memory_baseline_accepted", "memory_nonnegative"]},
+        {"op": "replace", "path": "/decision/not_applicable_gates", "value": ["quality_available", "scratch_bounded", "state_bounded", "transport_profile_available", "text_subset_proven"]},
+        {"op": "replace", "path": "/decision/next_permitted_task", "value": "forbidden-next-task"},
+        {"op": "replace", "path": "/decision/gate_evaluations/5/disposition", "value": "not_applicable"},
+        {"op": "replace", "path": "/decision/gate_evaluations/6/disposition", "value": "not_applicable"},
+        {"op": "replace", "path": "/decision/gate_evaluations/7/disposition", "value": "not_applicable"}
+      ],
+      "expected_error": "PLACEMENT_GATE_APPLICABILITY"
+    },
+    {
+      "case_id": "memory-summary-counts-reconcile",
+      "base_fixture": "memory-baseline.valid.json",
+      "schema": "qw5.memory-baseline/v1",
+      "operations": [{"op": "replace", "path": "/summary/accepted_samples", "value": 0}],
+      "expected_error": "MEMORY_SUMMARY_COUNT"
+    },
+    {
+      "case_id": "memory-os-reserve-reconciles",
+      "base_fixture": "memory-baseline.valid.json",
+      "schema": "qw5.memory-baseline/v1",
+      "operations": [{"op": "replace", "path": "/summary/observed_os_reserve_bytes", "value": 7}],
+      "expected_error": "MEMORY_SUMMARY_RECONCILIATION"
+    },
+    {
+      "case_id": "memory-complete-requires-thirty-samples",
+      "base_fixture": "memory-baseline.valid.json",
+      "schema": "qw5.memory-baseline/v1",
+      "operations": [
+        {"op": "replace", "path": "/summary/status", "value": "COMPLETE"},
+        {"op": "replace", "path": "/errors", "value": []}
+      ],
+      "expected_error": "MEMORY_COMPLETE_STATUS"
+    },
+    {
+      "case_id": "memory-stabilization-duration-reconciles",
+      "base_fixture": "memory-baseline.valid.json",
+      "schema": "qw5.memory-baseline/v1",
+      "operations": [{"op": "replace", "path": "/stabilization/observed_duration_ns", "value": 599000000000}],
+      "expected_error": "MEMORY_STABILIZATION_RECONCILIATION"
+    },
+    {
+      "case_id": "memory-sample-interval-enforced",
+      "base_fixture": "memory-baseline.valid.json",
+      "schema": "qw5.memory-baseline/v1",
+      "operations": [
+        {"op": "copy", "from": "/samples/0", "path": "/samples/-"},
+        {"op": "replace", "path": "/samples/1/attempt_index", "value": 2},
+        {"op": "replace", "path": "/samples/1/observed_at", "value": "2000-01-01T00:00:30Z"},
+        {"op": "replace", "path": "/samples/1/monotonic_ns", "value": 630000000000},
+        {"op": "replace", "path": "/summary/attempted_samples", "value": 2},
+        {"op": "replace", "path": "/summary/accepted_samples", "value": 2}
+      ],
+      "expected_error": "MEMORY_SAMPLE_INTERVAL"
+    }
+  ]
+}

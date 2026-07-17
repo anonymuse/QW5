@@ -1,0 +1,155 @@
+{
+  "schema": "qw5.placement-analysis/v1",
+  "artifact_role": "schema_fixture",
+  "evidence_class": "ESTIMATED",
+  "created_at": "2000-01-01T00:00:00Z",
+  "producer": {
+    "name": "qw5-schema-fixture",
+    "version": "1",
+    "executable_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "qw5_commit": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "dirty": false,
+    "parameters": ["--fixture"]
+  },
+  "model": {
+    "repository_id": "example/schema-fixture",
+    "immutable_revision": "ffffffffffffffffffffffffffffffffffffffff",
+    "component_scope": "schema_fixture"
+  },
+  "inputs": {
+    "model_manifest": {"sha256": "0101010101010101010101010101010101010101010101010101010101010101", "schema": "qw5.model-artifact-manifest/v1", "evidence_class": "SIMULATED", "acceptance_status": "accepted"},
+    "tensor_inventory": {"sha256": "0202020202020202020202020202020202020202020202020202020202020202", "schema": "qw5.tensor-inventory/v1", "evidence_class": "SIMULATED", "acceptance_status": "accepted"},
+    "hardware_inventory": {
+      "A": {"sha256": "0303030303030303030303030303030303030303030303030303030303030303", "schema": "qw5.hardware-inventory/v1", "evidence_class": "SIMULATED", "acceptance_status": "accepted"},
+      "B": {"sha256": "0404040404040404040404040404040404040404040404040404040404040404", "schema": "qw5.hardware-inventory/v1", "evidence_class": "SIMULATED", "acceptance_status": "accepted"},
+      "C": {"sha256": "0505050505050505050505050505050505050505050505050505050505050505", "schema": "qw5.hardware-inventory/v1", "evidence_class": "SIMULATED", "acceptance_status": "accepted"}
+    },
+    "memory_baseline": {
+      "A": {"sha256": "1111111111111111111111111111111111111111111111111111111111111111", "schema": "qw5.memory-baseline/v1", "evidence_class": "SIMULATED", "acceptance_status": "accepted"},
+      "B": {"sha256": "1212121212121212121212121212121212121212121212121212121212121212", "schema": "qw5.memory-baseline/v1", "evidence_class": "SIMULATED", "acceptance_status": "accepted"},
+      "C": {"sha256": "1313131313131313131313131313131313131313131313131313131313131313", "schema": "qw5.memory-baseline/v1", "evidence_class": "SIMULATED", "acceptance_status": "accepted"}
+    },
+    "link_summary": null,
+    "quantization_layout": {"sha256": "0707070707070707070707070707070707070707070707070707070707070707", "schema": "qw5.quantization-layout/v1", "evidence_class": "TARGET", "acceptance_status": "accepted"},
+    "formula_set": {"sha256": "0606060606060606060606060606060606060606060606060606060606060606", "schema": "qw5.formula-set/v1", "evidence_class": "TARGET", "acceptance_status": "accepted"},
+    "text_subset_dependency": null,
+    "gate_rule_set": {"sha256": "1414141414141414141414141414141414141414141414141414141414141414", "schema": "qw5.placement-gate-rule-set/v1", "evidence_class": "TARGET", "acceptance_status": "accepted"},
+    "placement_candidate_set": {"sha256": "1515151515151515151515151515151515151515151515151515151515151515", "schema": "qw5.placement-candidate-set/v1", "evidence_class": "TARGET", "acceptance_status": "accepted"},
+    "solver_objective": {"sha256": "1616161616161616161616161616161616161616161616161616161616161616", "schema": "qw5.placement-solver-objective/v1", "evidence_class": "TARGET", "acceptance_status": "accepted"},
+    "reserve_headroom_policy": {"sha256": "1717171717171717171717171717171717171717171717171717171717171717", "schema": "qw5.reserve-headroom-policy/v1", "evidence_class": "TARGET", "acceptance_status": "accepted"}
+  },
+  "evidence_graph_sha256": "f4f561b2bc865e756383d66dfcf32623cbc47acc1b46f1c37adc5a368226af7e",
+  "workload": {
+    "phase": "decode",
+    "batch_size": 1,
+    "context_tokens": 4096,
+    "prompt_tokens": 4095,
+    "generated_token_allowance": 1,
+    "sequence_count": 1,
+    "cache_policy_id": "fixture-cache",
+    "state_formula_id": "fixture-state",
+    "condition_class": "TARGET"
+  },
+  "quantization_candidate": {
+    "candidate_id": "fixture-layout",
+    "layout_spec_sha256": "0707070707070707070707070707070707070707070707070707070707070707",
+    "weight_bits": 4,
+    "mixed_precision": false,
+    "quality_evidence_sha256": null,
+    "assumptions": ["Synthetic values; not a model-feasibility result."]
+  },
+  "size_reconciliation": {
+    "source_payload_bytes": 16,
+    "packed_weight_bytes": 4,
+    "quantization_metadata_bytes": 2,
+    "padding_alignment_bytes": 1,
+    "higher_precision_exception_bytes": 0,
+    "container_overhead_bytes": 1,
+    "total_bytes": 8
+  },
+  "node_budgets": [
+    {
+      "node": "A",
+      "physical_bytes": 32,
+      "baseline_available_bytes": 24,
+      "os_reserve_bytes": 8,
+      "safety_reserve_bytes": 8,
+      "placement_budget_bytes": 16,
+      "allocated_bytes": 8,
+      "headroom_bytes": 8
+    },
+    {
+      "node": "B",
+      "physical_bytes": 32,
+      "baseline_available_bytes": 24,
+      "os_reserve_bytes": 8,
+      "safety_reserve_bytes": 8,
+      "placement_budget_bytes": 16,
+      "allocated_bytes": 0,
+      "headroom_bytes": 16
+    },
+    {
+      "node": "C",
+      "physical_bytes": 32,
+      "baseline_available_bytes": 24,
+      "os_reserve_bytes": 8,
+      "safety_reserve_bytes": 8,
+      "placement_budget_bytes": 16,
+      "allocated_bytes": 0,
+      "headroom_bytes": 16
+    }
+  ],
+  "allocations": [
+    {
+      "allocation_id": "fixture-weights",
+      "node": "A",
+      "class": "weights",
+      "bytes": 8,
+      "evidence_class": "ESTIMATED",
+      "tensor_set_id": "fixture-tensors",
+      "range": null,
+      "formula_id": "fixture-weights-v1",
+      "evidence_node_ids": ["tensor-inventory", "quantization-layout"],
+      "zero_bytes_proof_node_id": null
+    }
+  ],
+  "network_edges": [],
+  "decision": {
+    "decision_scope": "m1_memory_placement",
+    "outcome": "UNDETERMINED",
+    "required_gates": [
+      "artifact_complete", "tensor_reconciled", "layout_complete",
+      "memory_baseline_accepted", "memory_nonnegative", "quality_available",
+      "scratch_bounded", "state_bounded", "transport_profile_available",
+      "text_subset_proven"
+    ],
+    "applicable_gates": [
+      "artifact_complete", "tensor_reconciled", "layout_complete",
+      "memory_baseline_accepted", "memory_nonnegative", "quality_available",
+      "scratch_bounded", "state_bounded"
+    ],
+    "passed_gates": [
+      "artifact_complete", "tensor_reconciled", "layout_complete",
+      "memory_baseline_accepted", "memory_nonnegative"
+    ],
+    "failed_gates": [],
+    "unresolved_gates": [
+      "quality_available", "scratch_bounded", "state_bounded"
+    ],
+    "not_applicable_gates": ["transport_profile_available", "text_subset_proven"],
+    "gate_evaluations": [
+      {"gate_id": "artifact_complete", "disposition": "passed", "reason": "Fixture manifest is complete.", "rule_id": "artifact-complete-v1", "evidence_node_ids": ["model-manifest"]},
+      {"gate_id": "tensor_reconciled", "disposition": "passed", "reason": "Fixture tensor totals reconcile.", "rule_id": "tensor-reconciled-v1", "evidence_node_ids": ["tensor-inventory"]},
+      {"gate_id": "layout_complete", "disposition": "passed", "reason": "Fixture layout is frozen.", "rule_id": "layout-complete-v1", "evidence_node_ids": ["quantization-layout"]},
+      {"gate_id": "memory_baseline_accepted", "disposition": "passed", "reason": "Fixture baselines are accepted.", "rule_id": "memory-baseline-v1", "evidence_node_ids": ["baseline-a", "baseline-b", "baseline-c"]},
+      {"gate_id": "memory_nonnegative", "disposition": "passed", "reason": "All fixture node headroom is nonnegative.", "rule_id": "memory-nonnegative-v1", "evidence_node_ids": ["reserve-policy"]},
+      {"gate_id": "quality_available", "disposition": "unresolved", "reason": "Fixture has no quality evidence.", "rule_id": "quality-available-v1", "evidence_node_ids": []},
+      {"gate_id": "scratch_bounded", "disposition": "unresolved", "reason": "Fixture scratch is not bounded.", "rule_id": "scratch-bounded-v1", "evidence_node_ids": []},
+      {"gate_id": "state_bounded", "disposition": "unresolved", "reason": "Fixture state is not bounded.", "rule_id": "state-bounded-v1", "evidence_node_ids": []},
+      {"gate_id": "transport_profile_available", "disposition": "not_applicable", "reason": "Fixture candidate has no cross-node traffic.", "rule_id": null, "evidence_node_ids": []},
+      {"gate_id": "text_subset_proven", "disposition": "not_applicable", "reason": "Fixture is not a text-only subset claim.", "rule_id": null, "evidence_node_ids": []}
+    ],
+    "next_permitted_task": null,
+    "prohibited_claims": ["This synthetic fixture does not show that any model runs."]
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "schema": "qw5.tb5-measurement-index/v1",
+  "artifact_role": "schema_fixture",
+  "evidence_class": "SIMULATED",
+  "created_at": "2000-01-01T00:00:01Z",
+  "producer": {
+    "name": "qw5-schema-fixture", "version": "1",
+    "executable_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+    "qw5_commit": "2222222222222222222222222222222222222222", "dirty": false,
+    "parameters": ["--fixture"]
+  },
+  "plan_sha256": "c42b021dbf3ca36a4f3e01d2d5a7bd15e99dfb3ffbac36014100ee4826fc530b",
+  "local_control_index_sha256": "027c07177781eb3a88203fd30af0670c2182b2a5744e39c6cd0f050ae45dc1ed",
+  "plan_seed": 42,
+  "canonical_profile": "qw5-json-c14n-v1",
+  "entries": [
+    {
+      "cell_id": "stream:solo-a-b:64",
+      "relative_path": "measurements/stream/solo-a-b/64.json",
+      "sha256": "3f087c2fae8d7ecc52d0a472fdecda101de0dc3f73ff1af591d1eec7130866cb"
+    }
+  ]
+}

@@ -1,0 +1,99 @@
+{
+  "schema": "qw5.tb5-evidence-vectors/v1",
+  "artifacts": [
+    {
+      "vector_id": "empirical-synchronization-positive",
+      "fixture": "tb5-synchronization-evidence.valid.json",
+      "schema_id": "qw5.tb5-synchronization-evidence/v1",
+      "canonical_sha256": "359405d85ef899f10a35b6c20646b708239157e2057ce0da2cfc71e0581ef51b",
+      "linked_attempt": {
+        "plan_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+        "cell_id": "stream:duplex-a-b:64",
+        "attempt_id": "sample-001",
+        "valid": true,
+        "invalid_reasons": [],
+        "synchronization": {
+          "status": "available",
+          "method": "coordinator_observed_window_v1",
+          "calibration_rounds": 100,
+          "coordinator_receipt_spread_ns": 4000000,
+          "pre_attempt_control_rtt_max_ns": 120000,
+          "worker_start_to_ack_max_ns": 250000,
+          "timer_resolution_allowance_ns": 150,
+          "coordinator_observed_start_window_ns": 4620150,
+          "evidence_sha256": "359405d85ef899f10a35b6c20646b708239157e2057ce0da2cfc71e0581ef51b"
+        }
+      }
+    },
+    {
+      "vector_id": "local-buffer-copy-positive",
+      "fixture": "tb5-local-control.valid.json",
+      "schema_id": "qw5.tb5-local-control/v1",
+      "canonical_sha256": "5627d7505874aeb8a25ea77ffcec32dbbf57d76c20dd0942639e30a7ce1204ce"
+    },
+    {
+      "vector_id": "local-control-index-positive",
+      "fixture": "tb5-local-control-index.valid.json",
+      "schema_id": "qw5.tb5-local-control-index/v1",
+      "canonical_sha256": "027c07177781eb3a88203fd30af0670c2182b2a5744e39c6cd0f050ae45dc1ed",
+      "resolved_entries": [
+        {"relative_path": "controls/A/buffer_copy/64.json", "fixture": "tb5-local-control.valid.json"}
+      ]
+    },
+    {
+      "vector_id": "measurement-index-positive",
+      "fixture": "tb5-measurement-index.valid.json",
+      "schema_id": "qw5.tb5-measurement-index/v1",
+      "canonical_sha256": "edabe31cacf06104657dbb6474d25da58850a3a54975cc3241b9c68d4966d469",
+      "resolved_entries": [
+        {"relative_path": "measurements/stream/solo-a-b/64.json", "fixture": "tb5-measurement.valid.json"}
+      ]
+    }
+  ],
+  "hostile_mutations": [
+    {
+      "vector_id": "sync-window-disagrees-with-raw-inputs",
+      "base_vector_id": "empirical-synchronization-positive",
+      "operations": [{"op": "replace", "path": "/derived/coordinator_observed_start_window_ns", "value": 1}],
+      "expected_error": "TB_SYNC_RECONCILIATION"
+    },
+    {
+      "vector_id": "sync-claims-unsupported-upper-bound",
+      "base_vector_id": "empirical-synchronization-positive",
+      "operations": [{"op": "add", "path": "/derived/start_skew_upper_bound_ns", "value": 4620150}],
+      "expected_error": "SCHEMA"
+    },
+    {
+      "vector_id": "local-control-understates-buffer-footprint",
+      "base_vector_id": "local-buffer-copy-positive",
+      "operations": [{"op": "replace", "path": "/buffer_policy/peak_application_buffer_bytes", "value": 127}],
+      "expected_error": "TB_CONTROL_BUFFER_BOUND"
+    }
+  ],
+  "linkage_hostile_mutations": [
+    {
+      "vector_id": "sync-attempt-digest-does-not-resolve",
+      "base_vector_id": "empirical-synchronization-positive",
+      "operations": [
+        {
+          "op": "replace",
+          "path": "/synchronization/evidence_sha256",
+          "value": "0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ],
+      "expected_error": "TB_SYNC_EVIDENCE_DIGEST"
+    },
+    {
+      "vector_id": "sync-attempt-projection-disagrees-with-raw",
+      "base_vector_id": "empirical-synchronization-positive",
+      "operations": [
+        {
+          "op": "replace",
+          "path": "/synchronization/coordinator_observed_start_window_ns",
+          "value": 1
+        }
+      ],
+      "expected_error": "TB_SYNC_EVIDENCE_PROJECTION"
+    }
+  ]
+}

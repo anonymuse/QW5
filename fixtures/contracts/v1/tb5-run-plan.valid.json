@@ -1,0 +1,131 @@
+{
+  "schema": "qw5.tb5-run-plan/v1",
+  "artifact_role": "schema_fixture",
+  "evidence_class": "TARGET",
+  "plan_id": "fixture-plan",
+  "approval_status": "owner_approval_required",
+  "created_at": "2000-01-01T00:00:00Z",
+  "producer": {
+    "name": "qw5-schema-fixture",
+    "version": "1",
+    "executable_sha256": "1010101010101010101010101010101010101010101010101010101010101010",
+    "qw5_commit": "1010101010101010101010101010101010101010",
+    "dirty": false
+  },
+  "identity": {
+    "qw5_commit": "1010101010101010101010101010101010101010",
+    "dirty": false,
+    "harness_sha256": "2020202020202020202020202020202020202020202020202020202020202020",
+    "route_proof_sha256": "3030303030303030303030303030303030303030303030303030303030303030",
+    "inventory_sha256": {
+      "A": "4040404040404040404040404040404040404040404040404040404040404040",
+      "B": "5050505050505050505050505050505050505050505050505050505050505050",
+      "C": "6060606060606060606060606060606060606060606060606060606060606060"
+    }
+  },
+  "seed": 42,
+  "order_algorithm": "sha256-keyed-sort-v1",
+  "matrix": {
+    "scenario_order": [
+      "solo-a-b", "solo-b-a", "solo-a-c", "solo-c-a", "solo-b-c", "solo-c-b",
+      "duplex-a-b", "duplex-a-c", "duplex-b-c", "fanout-a", "fanout-b",
+      "fanout-c", "fanin-a", "fanin-b", "fanin-c", "cycle-a-b-c",
+      "cycle-a-c-b", "all-directed"
+    ],
+    "scenarios": [
+      {"scenario_id": "solo-a-b", "flows": [{"flow_id": "a-b", "source": "A", "destination": "B", "route_alias": "A-B"}]},
+      {"scenario_id": "solo-b-a", "flows": [{"flow_id": "b-a", "source": "B", "destination": "A", "route_alias": "A-B"}]},
+      {"scenario_id": "solo-a-c", "flows": [{"flow_id": "a-c", "source": "A", "destination": "C", "route_alias": "A-C"}]},
+      {"scenario_id": "solo-c-a", "flows": [{"flow_id": "c-a", "source": "C", "destination": "A", "route_alias": "A-C"}]},
+      {"scenario_id": "solo-b-c", "flows": [{"flow_id": "b-c", "source": "B", "destination": "C", "route_alias": "B-C"}]},
+      {"scenario_id": "solo-c-b", "flows": [{"flow_id": "c-b", "source": "C", "destination": "B", "route_alias": "B-C"}]},
+      {"scenario_id": "duplex-a-b", "flows": [{"flow_id": "a-b", "source": "A", "destination": "B", "route_alias": "A-B"}, {"flow_id": "b-a", "source": "B", "destination": "A", "route_alias": "A-B"}]},
+      {"scenario_id": "duplex-a-c", "flows": [{"flow_id": "a-c", "source": "A", "destination": "C", "route_alias": "A-C"}, {"flow_id": "c-a", "source": "C", "destination": "A", "route_alias": "A-C"}]},
+      {"scenario_id": "duplex-b-c", "flows": [{"flow_id": "b-c", "source": "B", "destination": "C", "route_alias": "B-C"}, {"flow_id": "c-b", "source": "C", "destination": "B", "route_alias": "B-C"}]},
+      {"scenario_id": "fanout-a", "flows": [{"flow_id": "a-b", "source": "A", "destination": "B", "route_alias": "A-B"}, {"flow_id": "a-c", "source": "A", "destination": "C", "route_alias": "A-C"}]},
+      {"scenario_id": "fanout-b", "flows": [{"flow_id": "b-a", "source": "B", "destination": "A", "route_alias": "A-B"}, {"flow_id": "b-c", "source": "B", "destination": "C", "route_alias": "B-C"}]},
+      {"scenario_id": "fanout-c", "flows": [{"flow_id": "c-a", "source": "C", "destination": "A", "route_alias": "A-C"}, {"flow_id": "c-b", "source": "C", "destination": "B", "route_alias": "B-C"}]},
+      {"scenario_id": "fanin-a", "flows": [{"flow_id": "b-a", "source": "B", "destination": "A", "route_alias": "A-B"}, {"flow_id": "c-a", "source": "C", "destination": "A", "route_alias": "A-C"}]},
+      {"scenario_id": "fanin-b", "flows": [{"flow_id": "a-b", "source": "A", "destination": "B", "route_alias": "A-B"}, {"flow_id": "c-b", "source": "C", "destination": "B", "route_alias": "B-C"}]},
+      {"scenario_id": "fanin-c", "flows": [{"flow_id": "a-c", "source": "A", "destination": "C", "route_alias": "A-C"}, {"flow_id": "b-c", "source": "B", "destination": "C", "route_alias": "B-C"}]},
+      {"scenario_id": "cycle-a-b-c", "flows": [{"flow_id": "a-b", "source": "A", "destination": "B", "route_alias": "A-B"}, {"flow_id": "b-c", "source": "B", "destination": "C", "route_alias": "B-C"}, {"flow_id": "c-a", "source": "C", "destination": "A", "route_alias": "A-C"}]},
+      {"scenario_id": "cycle-a-c-b", "flows": [{"flow_id": "a-c", "source": "A", "destination": "C", "route_alias": "A-C"}, {"flow_id": "c-b", "source": "C", "destination": "B", "route_alias": "B-C"}, {"flow_id": "b-a", "source": "B", "destination": "A", "route_alias": "A-B"}]},
+      {"scenario_id": "all-directed", "flows": [{"flow_id": "a-b", "source": "A", "destination": "B", "route_alias": "A-B"}, {"flow_id": "b-a", "source": "B", "destination": "A", "route_alias": "A-B"}, {"flow_id": "a-c", "source": "A", "destination": "C", "route_alias": "A-C"}, {"flow_id": "c-a", "source": "C", "destination": "A", "route_alias": "A-C"}, {"flow_id": "b-c", "source": "B", "destination": "C", "route_alias": "B-C"}, {"flow_id": "c-b", "source": "C", "destination": "B", "route_alias": "B-C"}]}
+    ],
+    "stream_payload_bytes": [64, 256, 1024, 4096, 16384, 65536, 262144, 1048576, 4194304, 16777216, 67108864, 268435456],
+    "round_trip_scenarios": ["solo-a-b", "solo-b-a", "solo-a-c", "solo-c-a", "solo-b-c", "solo-c-b"],
+    "round_trip_payload_bytes": [64, 1024, 16384, 262144, 4194304],
+    "planned_cell_count": 246
+  },
+  "stream_policy": {
+    "warmup_repetitions": 3,
+    "warmup_minimum_duration_ns": 2000000000,
+    "valid_repetitions": 10,
+    "maximum_attempts": 12,
+    "sample_target_duration_ns": 3000000000,
+    "maximum_duration_ns": 30000000000,
+    "maximum_payload_bytes_per_flow": 34359738368,
+    "minimum_messages_per_flow": 1,
+    "controlling_endpoint": "source",
+    "stop_rule": "first_complete_frame_at_or_after_target_before_either_cap",
+    "timeout_outcome": "invalid_attempt_retained",
+    "final_partial_frame_outcome": "invalid_attempt_retained",
+    "payload_generation_timing": "inside_retained_stream_interval",
+    "payload_verification_timing": "inside_receiver_retained_interval",
+    "buffer_policy": "one_preallocated_send_and_receive_payload_buffer_per_active_flow"
+  },
+  "round_trip_policy": {
+    "small_payload_max_bytes": 262144,
+    "small_warmup_exchanges": 100,
+    "small_recorded_exchanges": 1000,
+    "large_payload_bytes": 4194304,
+    "large_warmup_exchanges": 20,
+    "large_recorded_exchanges": 100,
+    "payload_generation_timing": "before_each_exchange_timer",
+    "payload_verification_timing": "inside_exchange_timer_before_ack",
+    "buffer_policy": "one_preallocated_send_and_receive_payload_buffer_per_active_flow"
+  },
+  "synchronization": {
+    "maximum_pre_attempt_control_rtt_ns": 1000000,
+    "maximum_coordinator_observed_start_window_ns": 10000000,
+    "pre_attempt_control_rounds_per_participant": 100,
+    "accepted_methods": ["coordinator_observed_window_v1"],
+    "interpretation": "empirical_inclusion_score_not_clock_bound_or_start_skew_proof",
+    "insufficient_evidence_outcome": "UNDETERMINED"
+  },
+  "framing": {
+    "protocol": "qw5-tb5-wire/v1",
+    "handshake_bytes": 96,
+    "data_header_bytes": 64,
+    "digest_trailer_bytes": 32,
+    "ack_bytes": 64,
+    "checksum": "sha256"
+  },
+  "socket_request": {
+    "transport": "tcp",
+    "persistent": true,
+    "tcp_nodelay": true,
+    "tls": false,
+    "compression": false,
+    "send_buffer_bytes": 1048576,
+    "receive_buffer_bytes": 1048576,
+    "address_family": "ipv6"
+  },
+  "local_controls": {
+    "schema": "qw5.tb5-local-control/v1",
+    "index_schema": "qw5.tb5-local-control-index/v1",
+    "nodes": ["A", "B", "C"],
+    "payload_bytes": [64, 256, 1024, 4096, 16384, 65536, 262144, 1048576, 4194304, 16777216, 67108864, 268435456],
+    "warmup_repetitions": 3,
+    "recorded_repetitions": 10,
+    "controls": ["buffer_copy", "framing", "sha256"],
+    "subtraction_policy": "report_separately_never_subtract"
+  },
+  "thermal_policy": {
+    "required_state": "nominal",
+    "precondition_duration_ns": 300000000000,
+    "recovery_duration_ns": 300000000000,
+    "maximum_pause_ns": 900000000000,
+    "regime_partition_policy": "exact_node_thermal_low_power_power_source_no_pooling"
+  }
+}

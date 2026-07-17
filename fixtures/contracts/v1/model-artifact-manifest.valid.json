@@ -1,0 +1,96 @@
+{
+  "schema": "qw5.model-artifact-manifest/v1",
+  "artifact_role": "schema_fixture",
+  "evidence_class": "SIMULATED",
+  "created_at": "2000-01-01T00:00:02Z",
+  "producer": {
+    "name": "qw5-schema-fixture",
+    "version": "1",
+    "executable_sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+    "qw5_commit": "8888888888888888888888888888888888888888",
+    "dirty": false,
+    "parameters": ["--fixture"]
+  },
+  "repository": {
+    "provider": "fixture",
+    "repository_id": "example/schema-fixture",
+    "immutable_revision": "9999999999999999999999999999999999999999",
+    "requested_reference": null
+  },
+  "selection": {
+    "model_role": "schema_fixture",
+    "acquisition_plan_sha256": "02f8d0a3cd55045a8e8ab694df2fbfe843d4545aac38b6cf7b4438579941c180",
+    "components": ["configuration", "language", "license", "tokenizer"],
+    "revision_listing_sha256": "7979797979797979797979797979797979797979797979797979797979797979",
+    "expected_paths": ["LICENSE", "config.json", "model-00001-of-00001.safetensors", "tokenizer.json"]
+  },
+  "files": [
+    {
+      "path": "LICENSE",
+      "role": "license",
+      "components": ["license"],
+      "status": "verified",
+      "size_bytes": 4,
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "media_type": "text/plain",
+      "upstream_object_id": null,
+      "verification_passes": [
+        {"pass_index": 1, "size_bytes": 4, "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "completed_at": "2000-01-01T00:00:00Z"},
+        {"pass_index": 2, "size_bytes": 4, "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "completed_at": "2000-01-01T00:00:01Z"}
+      ]
+    },
+    {
+      "path": "config.json",
+      "role": "configuration",
+      "components": ["configuration"],
+      "status": "verified",
+      "size_bytes": 2,
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "media_type": "application/json",
+      "upstream_object_id": null,
+      "verification_passes": [
+        {"pass_index": 1, "size_bytes": 2, "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "completed_at": "2000-01-01T00:00:00Z"},
+        {"pass_index": 2, "size_bytes": 2, "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "completed_at": "2000-01-01T00:00:01Z"}
+      ]
+    },
+    {
+      "path": "model-00001-of-00001.safetensors",
+      "role": "weight_shard",
+      "components": ["language"],
+      "status": "verified",
+      "size_bytes": 32,
+      "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "media_type": "application/octet-stream",
+      "upstream_object_id": "fixture-object",
+      "verification_passes": [
+        {"pass_index": 1, "size_bytes": 32, "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "completed_at": "2000-01-01T00:00:00Z"},
+        {"pass_index": 2, "size_bytes": 32, "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "completed_at": "2000-01-01T00:00:01Z"}
+      ]
+    },
+    {
+      "path": "tokenizer.json",
+      "role": "tokenizer",
+      "components": ["tokenizer"],
+      "status": "verified",
+      "size_bytes": 3,
+      "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "media_type": "application/json",
+      "upstream_object_id": null,
+      "verification_passes": [
+        {"pass_index": 1, "size_bytes": 3, "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "completed_at": "2000-01-01T00:00:00Z"},
+        {"pass_index": 2, "size_bytes": 3, "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "completed_at": "2000-01-01T00:00:01Z"}
+      ]
+    }
+  ],
+  "included_patterns": ["*.json", "*.safetensors", "LICENSE"],
+  "excluded_patterns": [],
+  "unexpected_files": [],
+  "completeness": {
+    "status": "complete",
+    "verified_file_count": 4,
+    "verified_total_bytes": 41,
+    "missing_paths": [],
+    "unexpected_paths": [],
+    "errors": []
+  }
+}
