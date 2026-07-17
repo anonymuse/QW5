@@ -6,9 +6,23 @@
       "vector_id": "f16-scalar",
       "source_hex": "3a000000000000007b227363616c6172223a7b226474797065223a22463136222c227368617065223a5b5d2c22646174615f6f666673657473223a5b302c325d7d7d003c",
       "sha256": "a6c982950966943188501a45d54be7358ec86fb2ceffcc04aaecf9bd6861a2aa",
-      "tensors": [
-        {"name": "scalar", "dtype": "F16", "shape": [], "element_count": 1, "stored_bytes": 2, "data_offsets": [0, 2]}
-      ]
+      "projection": {
+        "metadata": {},
+        "tensors": [
+          {"name": "scalar", "dtype": "F16", "shape": [], "element_count": 1, "stored_bytes": 2, "data_offsets": [0, 2]}
+        ]
+      }
+    },
+    {
+      "vector_id": "metadata-string-map",
+      "source_hex": "6d000000000000007b225f5f6d657461646174615f5f223a7b22666f726d6174223a2266697874757265222c22736f75726365223a22717735227d2c227363616c6172223a7b226474797065223a22463136222c227368617065223a5b5d2c22646174615f6f666673657473223a5b302c325d7d7d003c",
+      "sha256": "e207d2c1968524ead9a71b062334251d226402ed4e43c87dfd7bfcc5f4073ef5",
+      "projection": {
+        "metadata": {"format": "fixture", "source": "qw5"},
+        "tensors": [
+          {"name": "scalar", "dtype": "F16", "shape": [], "element_count": 1, "stored_bytes": 2, "data_offsets": [0, 2]}
+        ]
+      }
     }
   ],
   "invalid_sources": [
@@ -31,6 +45,31 @@
       "vector_id": "header-length-over-profile-limit",
       "source_hex": "0100000100000000",
       "expected_error": "SAFETENSORS_HEADER_LIMIT"
+    },
+    {
+      "vector_id": "metadata-numeric-value",
+      "source_hex": "21000000000000007b225f5f6d657461646174615f5f223a7b226e6f745f737472696e67223a317d7d",
+      "expected_error": "SAFETENSORS_METADATA"
+    },
+    {
+      "vector_id": "metadata-boolean-value",
+      "source_hex": "24000000000000007b225f5f6d657461646174615f5f223a7b226e6f745f737472696e67223a747275657d7d",
+      "expected_error": "SAFETENSORS_METADATA"
+    },
+    {
+      "vector_id": "metadata-list-value",
+      "source_hex": "22000000000000007b225f5f6d657461646174615f5f223a7b226e6f745f737472696e67223a5b5d7d7d",
+      "expected_error": "SAFETENSORS_METADATA"
+    },
+    {
+      "vector_id": "metadata-nested-value",
+      "source_hex": "32000000000000007b225f5f6d657461646174615f5f223a7b226e6f745f737472696e67223a7b226e6573746564223a2276616c7565227d7d7d",
+      "expected_error": "SAFETENSORS_METADATA"
+    },
+    {
+      "vector_id": "metadata-duplicate-member",
+      "source_hex": "2a000000000000007b225f5f6d657461646174615f5f223a7b226b6579223a226f6e65222c226b6579223a2274776f227d7d",
+      "expected_error": "SAFETENSORS_DUPLICATE_MEMBER"
     }
   ]
 }

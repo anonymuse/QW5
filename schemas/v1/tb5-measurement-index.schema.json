@@ -4,7 +4,7 @@
   "title": "QW5 Thunderbolt 5 measurement digest index v1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "artifact_role", "evidence_class", "created_at", "producer", "plan_sha256", "plan_seed", "canonical_profile", "entries"],
+  "required": ["schema", "artifact_role", "evidence_class", "created_at", "producer", "plan_sha256", "local_control_index_sha256", "plan_seed", "canonical_profile", "entries"],
   "properties": {
     "schema": { "const": "qw5.tb5-measurement-index/v1" },
     "artifact_role": { "enum": ["measurement_index", "schema_fixture"] },
@@ -12,8 +12,9 @@
     "created_at": { "$ref": "#/$defs/timestamp" },
     "producer": { "$ref": "#/$defs/producer" },
     "plan_sha256": { "$ref": "#/$defs/sha256" },
+    "local_control_index_sha256": { "$ref": "#/$defs/sha256" },
     "plan_seed": { "type": "integer", "minimum": 0, "maximum": 18446744073709551615 },
-    "canonical_profile": { "const": "qw5-canonical-json-v1" },
+    "canonical_profile": { "const": "qw5-json-c14n-v1" },
     "entries": { "type": "array", "minItems": 1, "maxItems": 246, "uniqueItems": true, "items": { "$ref": "#/$defs/entry" } }
   },
   "allOf": [

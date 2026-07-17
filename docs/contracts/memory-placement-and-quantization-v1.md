@@ -3,7 +3,10 @@
 ## Scope
 
 This contract defines an M1 calculation and decision artifact. It does not quantize
-weights, execute a model, validate model quality, or benchmark a kernel. The schema is
+weights, execute a model, validate model quality, or benchmark a kernel. The schemas
+are
+[`placement-evidence-graph.schema.json`](../../schemas/v1/placement-evidence-graph.schema.json)
+and
 [`placement-analysis.schema.json`](../../schemas/v1/placement-analysis.schema.json).
 
 ## Required inputs
@@ -83,6 +86,13 @@ Assigned classes include at minimum:
 - tokenizer/runtime code and control-plane state;
 - artifact staging or promotion buffers actually required at runtime; and
 - fragmentation allowance.
+
+The v1 decision resolver requires exhaustive coverage of these machine-readable
+memory classes before `GO`: `weights`, `quantization_metadata`, `kv_state`,
+`recurrent_state`, `router_state`, `scratch`, `transport`, `allocator`, `control`,
+`artifact_staging`, and `fragmentation`. A class may have zero bytes only when its
+allocation cites a resolved architecture proof. More detailed tensor or runtime
+classes roll up into exactly one of these decision classes without being discarded.
 
 An unavailable scratch or state bound is represented by a declared low/high
 sensitivity range. Zero is allowed only when the architecture proves the allocation
@@ -190,7 +200,8 @@ Each scenario has:
 - `decision_scope: m1_memory_placement`;
 - outcome `GO`, `NO_GO`, or `UNDETERMINED`;
 - applicable, passed, failed, unresolved, and not-applicable gate IDs;
-- one reasoned evaluation for every gate, with an evidence digest when applicable;
+- one reasoned evaluation for every gate, with a frozen rule ID and evidence-node IDs
+  when applicable;
 - exact evidence and assumption references;
 - the next permitted task; and
 - explicit claims that remain prohibited.
@@ -202,14 +213,38 @@ stability have their own evidence.
 The required gate set is exhaustive. Applicable and not-applicable gates are disjoint
 and exhaustive; applicable gates partition into passed, failed, and unresolved.
 Applicability derives from component scope and network edges, never from the desired
-outcome. Passed and failed evaluations require an evidence digest. A not-applicable
-evaluation requires a machine-readable reason and must not carry success evidence.
+outcome. Passed and failed evaluations require a frozen rule and resolved evidence
+nodes. A not-applicable evaluation requires a machine-readable reason and must not
+carry a rule or success evidence.
 
 The outcome is recomputed rather than trusted from a producer assertion. `NO_GO`
 follows from a failed gate or negative headroom. `UNDETERMINED` follows from unresolved
 gates or any non-accepted input. `GO` requires every applicable gate passed, every
-lineage input accepted, nonnegative headroom on every node, and a non-null next task.
+lineage input accepted, nonnegative headroom on every node, exhaustive memory-class
+coverage, resolved quality evidence when that gate passes, and a non-null next task.
 A not-applicable gate has a reason and cannot carry success evidence.
+
+## Evidence-graph resolution
+
+Every analysis references one canonical `qw5.placement-evidence-graph/v1` digest. The
+graph binds the model/workload/candidate identity; every input role's schema, evidence
+class, acceptance state, relative path, and digest; every gate's rule and evidence
+nodes; every allocation's formula and evidence nodes; and the exhaustive memory-class
+set. The graph carries the analysis identity fields rather than the analysis digest,
+so the relationship is acyclic: the graph is frozen first and the analysis then binds
+its digest.
+
+Decision consumption is a bundle operation. The resolver recomputes the graph digest,
+resolves every node by path, recomputes its canonical digest, validates its declared
+schema and semantic rules, reconciles evidence classes and analysis projections, and
+then recomputes placement arithmetic and gates. A standalone analysis is never
+permitted to establish `GO`, even if its producer writes accepted inputs and passed
+gates. Any unresolved path, digest, schema, semantic failure, gate projection,
+allocation projection, or required evidence node blocks `GO`. Until M1-14 freezes the
+remaining input schemas and registers deterministic evaluators for every passed gate
+rule, a positive placement decision is therefore intentionally unavailable. Merely
+adding a schema or producer-supplied rule ID does not register an evaluator; the
+planning fixture remains `UNDETERMINED`.
 
 ## Acceptance and negative cases
 
@@ -221,5 +256,6 @@ expert count; combined prefill/decode rates; mutable model revision; quantizatio
 bit-width label alone; overlapping, incomplete, or vacuously not-applicable gate sets;
 missing rule/candidate/objective/reserve lineage; a subset proof applied to a complete
 artifact; network traffic without an accepted link summary; `GO` with negative
-headroom, unresolved gates, or unaccepted lineage; quality inferred from size; and a
-capability claim derived from an estimated placement.
+headroom, incomplete memory-class coverage, an unresolved evidence graph, unresolved
+gates, or unaccepted lineage; producer-asserted `GO` outside the resolver; quality
+inferred from size; and a capability claim derived from an estimated placement.

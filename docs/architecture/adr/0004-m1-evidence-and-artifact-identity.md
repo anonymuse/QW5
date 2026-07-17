@@ -45,6 +45,13 @@ range. Non-JSON files are hashed as exact raw bytes. A manifest does not contain
 self-referential digest; its parent index, report, or sidecar records the digest.
 Exact canonicalization and wire vectors pin expected bytes and hashes.
 
+Evidence graphs are directed and acyclic. A preregistration artifact contains only
+inputs knowable before execution and cannot name a post-run index. Produced artifacts
+bind the preregistration digest; later indexes bind those output digests; final reports
+bind the indexes. A decision artifact may bind a pre-frozen evidence-graph digest,
+while that graph carries only the decision's stable workload identity rather than a
+digest of the later decision artifact.
+
 Draft 2020-12 structure is one validation layer. Versioned repository semantic
 validation additionally enforces uniqueness by stable ID, referential integrity,
 coverage matrices, arithmetic reconciliation, storage ranges, status transitions,

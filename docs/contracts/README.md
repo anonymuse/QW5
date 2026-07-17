@@ -21,10 +21,11 @@ model feasibility.
 - [`memory-placement-and-quantization-v1.md`](memory-placement-and-quantization-v1.md)
   defines the two-model feasibility analysis and decision vocabulary.
 
-The contract set includes 14 v1 schemas: hardware inventory, clean-node memory
+The contract set includes 16 v1 schemas: hardware inventory, clean-node memory
 baseline, TB5 run plan, route proof, raw local control, local-control index, raw
-synchronization evidence, raw measurement, measurement index, link summary, model
-manifest, SafeTensors parser profile, tensor inventory, and placement analysis.
+synchronization evidence, raw measurement, measurement index, link summary, immutable
+model acquisition plan, model manifest, SafeTensors parser profile, tensor inventory,
+placement evidence graph, and placement analysis.
 
 The corresponding JSON Schemas are under [`../../schemas/v1`](../../schemas/v1), with
 public-safe synthetic examples and negative fixtures under

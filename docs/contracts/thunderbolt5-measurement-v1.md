@@ -28,6 +28,15 @@ Every digest is SHA-256 over [`qw5-json-c14n-v1`](canonical-json-v1.md) bytes. T
 handshake, deterministic payload generator, frame, checksum trailer, acknowledgement,
 and exact vectors are [`qw5-tb5-wire/v1`](thunderbolt5-wire-v1.md).
 
+The identity graph is deliberately acyclic. The preregistered plan contains only
+inputs known before collection and never names a local-control or measurement output.
+Each local control binds the plan digest; the local-control index binds the plan and
+all 108 control digests. Each raw measurement and the measurement index bind both the
+plan and local-control-index digests; the measurement index then binds all 246 raw
+cell digests. The link summary binds the plan, local-control index, and measurement
+index. Bundle validation recomputes each canonical digest and every projection across
+that complete graph.
+
 ## Preconditions
 
 Before physical collection:
@@ -181,11 +190,12 @@ quality score used only to include or exclude a simultaneous attempt:
 4. `coordinator_observed_start_window_ns` is receipt spread + maximum RTT + twice the
    maximum worker interval + the timer-resolution allowance.
 
-This value is not an actual-start estimate and cannot support a one-way-timing claim.
-An attempt is included only when maximum control RTT is at most 1 ms and the
-coordinator-observed window is at most 10 ms. Missing, malformed, or error evidence
-invalidates the attempt. If no simultaneous recorded attempt qualifies, the cell is
-`UNDETERMINED`. Solo attempts use `not_required`.
+This value is solely an empirical attempt-inclusion score. It is never an actual-start
+estimate, start-skew bound, clock proof, or one-way-delay claim. An attempt is included
+only when maximum control RTT is at most 1 ms and the coordinator-observed window is
+at most 10 ms. Missing, malformed, or error evidence invalidates the attempt. If no
+simultaneous recorded attempt qualifies, the cell is `UNDETERMINED`. Solo attempts
+use `not_required`.
 
 The raw record retains clocks by API identifier and units, all 100 RTTs per
 participant, release/receipt values, worker intervals, resolutions, derived values,
@@ -211,6 +221,12 @@ producer identity, and errors. The index resolves each relative path to its cano
 digest. Controls are matching cost context only; they are never subtracted from
 network measurements.
 
+Each control also records one exact node-local regime identity over its observation
+interval: thermal state, Low Power Mode, and power source at both boundaries. A
+`COMPLETE` control cannot cross any of those boundaries. The control index and every
+control resolve to the same preregistered plan; the plan never points back to the
+post-run index.
+
 A complete control has exactly three warm-ups, ten recorded durations, and no error.
 A failed, aborted, or undetermined control retains every completed duration and at
 least one structured error; it remains in the 108-entry index and cannot be normalized
@@ -226,17 +242,23 @@ to an empty successful result.
   socket retuning is allowed inside a plan.
 - Every attempt retains start/end thermal state, Low Power Mode, power source, and
   node-local observation times.
+- A valid attempt has exactly one stable `(thermal state, Low Power Mode, power
+  source)` tuple per active node. Start/end changes invalidate the attempt.
 - When a node leaves nominal state, finish and retain the current attempt, pause up to
   15 minutes, and resume only after all participating nodes are nominal for five
   continuous minutes. Otherwise abort the cell.
-- Different thermal or power regimes are not pooled.
+- One cell summary may cover only one complete per-node regime identity. An attempt
+  from a different thermal, Low Power Mode, or power-source regime cannot remain a
+  valid member of that summary; it is retained with an exclusion reason. Regimes are
+  not pooled even if their thermal-state labels match.
 
 ## Measurement index and link summary
 
 The measurement index has exactly 246 unique cell IDs, relative paths, and digests.
 The link summary records the index digest. For every cell, validation must resolve the
 path, recompute the raw canonical digest, and reconcile cell identity, mode, scenario,
-payload, status, ordered flow set, metrics, exclusions, errors, and thermal regimes.
+payload, status, ordered flow set, metrics, exclusions, errors, and exact per-node
+regime identities.
 Coverage is recomputed from the reconciled statuses.
 
 `COMPLETE` has an evidentiary meaning:
@@ -249,7 +271,7 @@ Coverage is recomputed from the reconciled statuses.
   empty.
 
 `FAILED`, `ABORTED`, and `UNDETERMINED` cells retain whatever valid partial metrics,
-exclusions, errors, and thermal regimes exist. They are never converted to empty
+exclusions, errors, and regime identities exist. They are never converted to empty
 successful-looking records.
 
 Integer summary arithmetic is fixed: per-attempt stream rate is
@@ -264,7 +286,11 @@ In addition to schema/meta-schema, canonical, wire, and link checks, validation 
 
 - an all-`COMPLETE` summary with zero samples;
 - an index digest, path, raw digest, identity, status, metric, exclusion, error, or
-  thermal projection that disagrees;
+  regime projection that disagrees;
+- a run plan that points at a post-run local-control index, a local control that binds
+  a different plan, or any unresolved path/digest in the complete evidence graph;
+- pooling attempts or controls across thermal, Low Power Mode, or power-source
+  regimes;
 - an unsupported timing-bound field or a derived empirical score that does not
   reconcile;
 - insufficient empirical evidence credited to a simultaneous cell;

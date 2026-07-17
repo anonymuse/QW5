@@ -19,6 +19,7 @@
   },
   "selection": {
     "model_role": "schema_fixture",
+    "acquisition_plan_sha256": "02f8d0a3cd55045a8e8ab694df2fbfe843d4545aac38b6cf7b4438579941c180",
     "components": ["configuration", "language", "license", "tokenizer"],
     "revision_listing_sha256": "7979797979797979797979797979797979797979797979797979797979797979",
     "expected_paths": ["LICENSE", "config.json", "model-00001-of-00001.safetensors", "tokenizer.json"]
@@ -27,6 +28,7 @@
     {
       "path": "LICENSE",
       "role": "license",
+      "components": ["license"],
       "status": "verified",
       "size_bytes": 4,
       "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -40,6 +42,7 @@
     {
       "path": "config.json",
       "role": "configuration",
+      "components": ["configuration"],
       "status": "verified",
       "size_bytes": 2,
       "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
@@ -53,6 +56,7 @@
     {
       "path": "model-00001-of-00001.safetensors",
       "role": "weight_shard",
+      "components": ["language"],
       "status": "verified",
       "size_bytes": 32,
       "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
@@ -66,6 +70,7 @@
     {
       "path": "tokenizer.json",
       "role": "tokenizer",
+      "components": ["tokenizer"],
       "status": "verified",
       "size_bytes": 3,
       "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",

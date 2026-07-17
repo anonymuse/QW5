@@ -7,7 +7,8 @@ consumes. They cover `Qwen/Qwen3-Coder-Next` and
 `Qwen/Qwen3.5-397B-A17B`; they do not authorize a download or select a new revision.
 
 The schemas are
-[`model-artifact-manifest.schema.json`](../../schemas/v1/model-artifact-manifest.schema.json)
+[`model-acquisition-plan.schema.json`](../../schemas/v1/model-acquisition-plan.schema.json),
+[`model-artifact-manifest.schema.json`](../../schemas/v1/model-artifact-manifest.schema.json),
 and [`tensor-inventory.schema.json`](../../schemas/v1/tensor-inventory.schema.json).
 SafeTensors parsing is further frozen by
 [`safetensors-parser-profile.schema.json`](../../schemas/v1/safetensors-parser-profile.schema.json).
@@ -38,11 +39,22 @@ tokenizer files, special-token maps, chat or prompt templates, license and notic
 weight index files, and every weight shard used by the tensor inventory. Missing or
 extra files fail completeness until reviewed.
 
-Before acquisition, Sol captures the immutable revision listing as a canonical
-artifact, records its SHA-256, and freezes the sorted `expected_paths` selected from
-that listing. The manifest file table must match that expected set exactly. Include
-and exclude patterns explain the selection but cannot substitute for the explicit
-path set or change after file results are visible.
+Before acquisition, Sol captures the immutable revision listing and freezes a
+canonical `qw5.model-acquisition-plan/v1` artifact. The plan binds the exact
+repository/revision, model role, listing digest, required component set, sorted file
+paths, each path's role and component coverage, include/exclude patterns, and owner
+approval state. The manifest references the canonical plan digest and its file table
+must match the planned path/role/component table exactly. Include and exclude patterns
+explain the selection but cannot substitute for the explicit file table or change
+after file results are visible.
+
+Required components are derived from the model role rather than chosen by the
+manifest producer. Both targets require configuration, language weights, license or
+notice material, and tokenizer material. The flagship target additionally requires
+vision bytes. A file contributes a component only through a compatible verified
+role: for example, a `weight_shard` may cover language or vision, but a configuration
+file cannot. Consequently, a configuration-only manifest cannot be `complete` even
+when its one selected file hashes correctly.
 
 ## File and manifest hashing
 
@@ -53,11 +65,13 @@ SHA-256, and completion time. Both passes must match the accepted file identity;
 boolean assertion that a second pass happened is insufficient. The manifest uses
 canonical bytes and path order. A parent gate report records its digest.
 
-`complete` is derived, never self-asserted: every selected file is `verified`, every
-selected component has its required role, missing/unexpected/error lists are empty,
-the file table equals the frozen expected paths, both hash passes reconcile, and
-verified file/byte totals equal the file table. An
-incomplete or error manifest remains durable negative evidence but cannot pass G3.
+`complete` is derived, never self-asserted: the acquisition plan is owner-approved for
+a production artifact; every role-required component is covered by a compatible
+verified file; every planned file is `verified`; missing/unexpected/error lists are
+empty; the manifest repository, revision, listing, patterns, components, and complete
+path/role/component table equal the resolved plan; both hash passes reconcile; and
+verified file/byte totals equal the file table. An incomplete or error manifest
+remains durable negative evidence but cannot pass G3.
 
 ## Tensor inventory
 
@@ -105,13 +119,17 @@ QW5's safety limits are contract policy, not claims about upstream SafeTensors:
 
 The parser reads the little-endian u64 header length, rejects a truncated/oversized
 header, requires strict UTF-8 and an object beginning with `{`, permits only ASCII
-space padding, and rejects duplicate JSON members at every nesting level. Every tensor
-record has only `dtype`, `shape`, and `data_offsets`; offsets must be ordered, in
-bounds, contiguous, non-overlapping, and collectively cover the data buffer. Dtype,
-shape, byte length, and range length reconcile exactly. The raw
+space padding, and rejects duplicate JSON members at every nesting level. The reserved
+top-level `__metadata__` member, when present, must be an object whose keys and values
+are strings; arbitrary nested JSON, numbers, booleans, lists, and duplicate metadata
+keys are rejected. Parsed metadata is retained in the deterministic projection rather
+than discarded. Every tensor record has only `dtype`, `shape`, and `data_offsets`;
+offsets must be ordered, in bounds, contiguous, non-overlapping, and collectively
+cover the data buffer. Dtype, shape, byte length, and range length reconcile exactly.
+The raw
 [`safetensors-parser-v1.vectors.json`](../../fixtures/contracts/v1/safetensors-parser-v1.vectors.json)
-includes a positive scalar plus duplicate-member, scalar-byte, unsupported-dtype, and
-header-limit hostiles.
+includes positive scalar and metadata-map cases plus duplicate-member, invalid
+metadata-value, scalar-byte, unsupported-dtype, and header-limit hostiles.
 
 Source files record container, header, and data-section bytes. Totals are emitted by
 file, component, semantic class, normalized dtype, layer, and expert class. Every
@@ -181,12 +199,14 @@ names.
 
 ## Acceptance and negative cases
 
-Tests must reject a mutable revision, truncated hash, absolute path, missing consumed
-file, hash/size mismatch on either pass, duplicate file path, false completeness,
+Tests must reject a mutable revision, truncated hash, absolute path, acquisition-plan
+digest or projection mismatch, role-incomplete acquisition plan, missing consumed
+file, hash/size mismatch on either pass, duplicate file path, configuration-only or
+otherwise false completeness,
 duplicate tensor name, unknown dtype, shape/element/byte mismatch, reversed,
 out-of-range, overlapping, or holed storage, duplicate SafeTensors JSON members,
-unsupported dtype, oversized or malformed header, scalar byte/range mismatch, checked-
-arithmetic overflow, missing quantization metadata,
+non-string SafeTensors metadata, unsupported dtype, oversized or malformed header,
+scalar byte/range mismatch, checked-arithmetic overflow, missing quantization metadata,
 non-reconciling file/layer/expert totals, unclassified tensor used by a class-dependent
 placement, excluded vision tensor without a dependency rule, and private download or
 machine data. Hostile miniature vectors exercise these invariants without model

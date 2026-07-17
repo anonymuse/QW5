@@ -79,6 +79,13 @@
       "expected_error": "SCHEMA"
     },
     {
+      "case_id": "tb-plan-rejects-cyclic-local-control-digest",
+      "base_fixture": "tb5-run-plan.valid.json",
+      "schema": "qw5.tb5-run-plan/v1",
+      "operations": [{"op": "add", "path": "/identity/local_control_index_sha256", "value": "abababababababababababababababababababababababababababababababab"}],
+      "expected_error": "SCHEMA"
+    },
+    {
       "case_id": "tb-route-six-flow-coverage",
       "base_fixture": "tb5-route-proof.valid.json",
       "schema": "qw5.tb5-route-proof/v1",
@@ -198,11 +205,24 @@
       "expected_error": "TB_AGGREGATE_SUMMARY"
     },
     {
-      "case_id": "tb-thermal-summary-reconciles",
+      "case_id": "tb-regime-summary-reconciles",
       "base_fixture": "tb5-measurement.valid.json",
       "schema": "qw5.tb5-measurement/v1",
-      "operations": [{"op": "replace", "path": "/summary/thermal_regimes", "value": ["invented"]}],
-      "expected_error": "TB_THERMAL_SUMMARY"
+      "operations": [{"op": "replace", "path": "/summary/regime_identities/0/thermal_state", "value": "invented"}],
+      "expected_error": "TB_REGIME_SUMMARY"
+    },
+    {
+      "case_id": "tb-rejects-mixed-regime-pooling",
+      "base_fixture": "tb5-measurement.valid.json",
+      "schema": "qw5.tb5-measurement/v1",
+      "operations": [
+        {"op": "copy", "from": "/attempts/3", "path": "/attempts/-"},
+        {"op": "replace", "path": "/attempts/4/attempt_id", "value": "sample-002"},
+        {"op": "replace", "path": "/attempts/4/attempt_index", "value": 2},
+        {"op": "replace", "path": "/attempts/4/thermal/0/start_power_source", "value": "battery"},
+        {"op": "replace", "path": "/attempts/4/thermal/0/end_power_source", "value": "battery"}
+      ],
+      "expected_error": "TB_REGIME_MIXED"
     },
     {
       "case_id": "tb-sync-derived-window-reconciles",
@@ -255,6 +275,27 @@
       "base_fixture": "tb5-local-control.valid.json",
       "schema": "qw5.tb5-local-control/v1",
       "operations": [{"op": "replace", "path": "/status", "value": "FAILED"}],
+      "expected_error": "SCHEMA"
+    },
+    {
+      "case_id": "tb-local-control-rejects-regime-transition",
+      "base_fixture": "tb5-local-control.valid.json",
+      "schema": "qw5.tb5-local-control/v1",
+      "operations": [{"op": "replace", "path": "/regime/end_power_source", "value": "battery"}],
+      "expected_error": "TB_CONTROL_REGIME_TRANSITION"
+    },
+    {
+      "case_id": "tb-local-control-index-rejects-legacy-canonical-profile",
+      "base_fixture": "tb5-local-control-index.valid.json",
+      "schema": "qw5.tb5-local-control-index/v1",
+      "operations": [{"op": "replace", "path": "/canonical_profile", "value": "qw5-canonical-json-v1"}],
+      "expected_error": "SCHEMA"
+    },
+    {
+      "case_id": "tb-measurement-index-rejects-legacy-canonical-profile",
+      "base_fixture": "tb5-measurement-index.valid.json",
+      "schema": "qw5.tb5-measurement-index/v1",
+      "operations": [{"op": "replace", "path": "/canonical_profile", "value": "qw5-canonical-json-v1"}],
       "expected_error": "SCHEMA"
     },
     {
@@ -324,6 +365,31 @@
       "schema": "qw5.model-artifact-manifest/v1",
       "operations": [{"op": "remove", "path": "/selection/expected_paths/3"}],
       "expected_error": "MODEL_EXPECTED_PATHS"
+    },
+    {
+      "case_id": "model-acquisition-plan-requires-role-complete-components",
+      "base_fixture": "model-acquisition-plan.valid.json",
+      "schema": "qw5.model-acquisition-plan/v1",
+      "operations": [
+        {"op": "replace", "path": "/expected_files/2/role", "value": "other"},
+        {"op": "replace", "path": "/expected_files/2/components", "value": ["configuration"]}
+      ],
+      "expected_error": "MODEL_PLAN_ROLE_COVERAGE"
+    },
+    {
+      "case_id": "model-complete-rejects-config-only-selection",
+      "base_fixture": "model-artifact-manifest.valid.json",
+      "schema": "qw5.model-artifact-manifest/v1",
+      "operations": [
+        {"op": "replace", "path": "/selection/components", "value": ["configuration"]},
+        {"op": "replace", "path": "/selection/expected_paths", "value": ["config.json"]},
+        {"op": "remove", "path": "/files/3"},
+        {"op": "remove", "path": "/files/2"},
+        {"op": "remove", "path": "/files/0"},
+        {"op": "replace", "path": "/completeness/verified_file_count", "value": 1},
+        {"op": "replace", "path": "/completeness/verified_total_bytes", "value": 2}
+      ],
+      "expected_error": "MODEL_ROLE_COMPONENTS"
     },
     {
       "case_id": "tensor-names-unique",
@@ -414,6 +480,20 @@
       "expected_error": "PLACEMENT_SIZE_RECONCILIATION"
     },
     {
+      "case_id": "placement-graph-passed-gate-requires-accepted-evidence",
+      "base_fixture": "placement-evidence-graph.valid.json",
+      "schema": "qw5.placement-evidence-graph/v1",
+      "operations": [{"op": "replace", "path": "/nodes/0/acceptance_status", "value": "owner_approval_required"}],
+      "expected_error": "PLACEMENT_GRAPH_GATE_ACCEPTANCE"
+    },
+    {
+      "case_id": "placement-graph-passed-gate-requires-corresponding-evidence",
+      "base_fixture": "placement-evidence-graph.valid.json",
+      "schema": "qw5.placement-evidence-graph/v1",
+      "operations": [{"op": "replace", "path": "/gate_resolutions/0/evidence_node_ids", "value": ["gate-rule-set"]}],
+      "expected_error": "PLACEMENT_GRAPH_GATE_BINDING"
+    },
+    {
       "case_id": "placement-budget-formula",
       "base_fixture": "placement-analysis.valid.json",
       "schema": "qw5.placement-analysis/v1",
@@ -447,6 +527,24 @@
       "schema": "qw5.placement-analysis/v1",
       "operations": [{"op": "replace", "path": "/decision/outcome", "value": "GO"}],
       "expected_error": "SCHEMA"
+    },
+    {
+      "case_id": "placement-producer-cannot-assert-go-without-resolved-graph",
+      "base_fixture": "placement-analysis.valid.json",
+      "schema": "qw5.placement-analysis/v1",
+      "operations": [
+        {"op": "replace", "path": "/decision/outcome", "value": "GO"},
+        {"op": "replace", "path": "/decision/passed_gates", "value": ["artifact_complete", "tensor_reconciled", "layout_complete", "memory_baseline_accepted", "memory_nonnegative", "quality_available", "scratch_bounded", "state_bounded"]},
+        {"op": "replace", "path": "/decision/unresolved_gates", "value": []},
+        {"op": "replace", "path": "/decision/next_permitted_task", "value": "forbidden-next-task"},
+        {"op": "replace", "path": "/decision/gate_evaluations/5/disposition", "value": "passed"},
+        {"op": "replace", "path": "/decision/gate_evaluations/5/evidence_node_ids", "value": ["gate-rule-set"]},
+        {"op": "replace", "path": "/decision/gate_evaluations/6/disposition", "value": "passed"},
+        {"op": "replace", "path": "/decision/gate_evaluations/6/evidence_node_ids", "value": ["gate-rule-set"]},
+        {"op": "replace", "path": "/decision/gate_evaluations/7/disposition", "value": "passed"},
+        {"op": "replace", "path": "/decision/gate_evaluations/7/evidence_node_ids", "value": ["gate-rule-set"]}
+      ],
+      "expected_error": "PLACEMENT_GO_REQUIRES_RESOLVED_GRAPH"
     },
     {
       "case_id": "placement-go-rejects-negative-headroom",
@@ -493,14 +591,14 @@
       "case_id": "placement-passed-gate-requires-evidence",
       "base_fixture": "placement-analysis.valid.json",
       "schema": "qw5.placement-analysis/v1",
-      "operations": [{"op": "replace", "path": "/decision/gate_evaluations/0/evidence_sha256", "value": null}],
+      "operations": [{"op": "replace", "path": "/decision/gate_evaluations/0/evidence_node_ids", "value": []}],
       "expected_error": "PLACEMENT_GATE_EVIDENCE"
     },
     {
       "case_id": "placement-not-applicable-gate-rejects-success-evidence",
       "base_fixture": "placement-analysis.valid.json",
       "schema": "qw5.placement-analysis/v1",
-      "operations": [{"op": "replace", "path": "/decision/gate_evaluations/8/evidence_sha256", "value": "1818181818181818181818181818181818181818181818181818181818181818"}],
+      "operations": [{"op": "replace", "path": "/decision/gate_evaluations/8/evidence_node_ids", "value": ["gate-rule-set"]}],
       "expected_error": "PLACEMENT_GATE_EVIDENCE"
     },
     {

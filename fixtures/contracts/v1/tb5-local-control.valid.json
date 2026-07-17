@@ -9,7 +9,7 @@
     "qw5_commit": "1919191919191919191919191919191919191919", "dirty": false,
     "parameters": ["--fixture"]
   },
-  "plan_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+  "plan_sha256": "c42b021dbf3ca36a4f3e01d2d5a7bd15e99dfb3ffbac36014100ee4826fc530b",
   "control_id": "buffer_copy",
   "node": "A",
   "payload_bytes": 64,
@@ -19,6 +19,17 @@
     "preallocated_output_buffers": 1,
     "peak_application_buffer_bytes": 128,
     "timing_scope": "copy_only"
+  },
+  "regime": {
+    "node": "A",
+    "observation_start_monotonic_ns": 0,
+    "observation_end_monotonic_ns": 1000000,
+    "start_thermal_state": "nominal",
+    "end_thermal_state": "nominal",
+    "start_low_power_mode": false,
+    "end_low_power_mode": false,
+    "start_power_source": "ac",
+    "end_power_source": "ac"
   },
   "warmup_elapsed_ns": [1000, 990, 995],
   "recorded_elapsed_ns": [980, 981, 982, 983, 984, 985, 986, 987, 988, 989],

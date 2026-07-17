@@ -1,0 +1,31 @@
+{
+  "schema": "qw5.model-acquisition-plan/v1",
+  "artifact_role": "schema_fixture",
+  "evidence_class": "TARGET",
+  "created_at": "2000-01-01T00:00:00Z",
+  "producer": {
+    "name": "qw5-schema-fixture",
+    "version": "1",
+    "executable_sha256": "7878787878787878787878787878787878787878787878787878787878787878",
+    "qw5_commit": "7878787878787878787878787878787878787878",
+    "dirty": false,
+    "parameters": ["--fixture"]
+  },
+  "approval_status": "owner_approval_required",
+  "repository": {
+    "provider": "fixture",
+    "repository_id": "example/schema-fixture",
+    "immutable_revision": "9999999999999999999999999999999999999999"
+  },
+  "model_role": "schema_fixture",
+  "revision_listing_sha256": "7979797979797979797979797979797979797979797979797979797979797979",
+  "required_components": ["configuration", "language", "license", "tokenizer"],
+  "expected_files": [
+    {"path": "LICENSE", "role": "license", "components": ["license"]},
+    {"path": "config.json", "role": "configuration", "components": ["configuration"]},
+    {"path": "model-00001-of-00001.safetensors", "role": "weight_shard", "components": ["language"]},
+    {"path": "tokenizer.json", "role": "tokenizer", "components": ["tokenizer"]}
+  ],
+  "included_patterns": ["*.json", "*.safetensors", "LICENSE"],
+  "excluded_patterns": []
+}

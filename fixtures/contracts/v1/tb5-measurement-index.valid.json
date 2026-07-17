@@ -9,14 +9,15 @@
     "qw5_commit": "2222222222222222222222222222222222222222", "dirty": false,
     "parameters": ["--fixture"]
   },
-  "plan_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+  "plan_sha256": "c42b021dbf3ca36a4f3e01d2d5a7bd15e99dfb3ffbac36014100ee4826fc530b",
+  "local_control_index_sha256": "027c07177781eb3a88203fd30af0670c2182b2a5744e39c6cd0f050ae45dc1ed",
   "plan_seed": 42,
-  "canonical_profile": "qw5-canonical-json-v1",
+  "canonical_profile": "qw5-json-c14n-v1",
   "entries": [
     {
       "cell_id": "stream:solo-a-b:64",
       "relative_path": "measurements/stream/solo-a-b/64.json",
-      "sha256": "48c589c326d47e76d99d9eb2b017639820f83bc932ddb8fc3abef237143f4ea3"
+      "sha256": "3f087c2fae8d7ecc52d0a472fdecda101de0dc3f73ff1af591d1eec7130866cb"
     }
   ]
 }

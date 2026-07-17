@@ -15,6 +15,10 @@ storage, and gate invariants without copying large fixtures.
 bytes or canonical artifact digests and named hostile outcomes. The wire file also
 pins byte-exact corruptions and required parser error codes.
 The TB5 evidence vectors additionally pin raw synchronization-to-attempt digest and
-field reconciliation plus local-control and measurement-index resolution.
+field reconciliation plus acyclic plan, local-control, control-index, measurement,
+measurement-index, and summary resolution. The model fixtures pair a frozen
+acquisition plan with its exact manifest projection; placement fixtures pair an
+`UNDETERMINED` analysis with its evidence graph. SafeTensors vectors retain valid
+string-map `__metadata__` and reject non-string or nested metadata values.
 `tools/validate_contracts.py` rebuilds these independently and validates every schema,
 positive fixture, and hostile mutation.

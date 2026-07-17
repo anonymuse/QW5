@@ -37,7 +37,7 @@
     "required_invariants": {
       "const": [
         "little_endian_header_length_u64", "strict_utf8_header", "header_starts_with_object",
-        "ascii_space_padding_only", "unique_json_members", "known_tensor_members_only",
+        "ascii_space_padding_only", "unique_json_members", "metadata_string_map_only", "known_tensor_members_only",
         "scalar_shape_empty_array_is_one_element", "checked_u64_shape_product",
         "nonnegative_ordered_in_bounds_offsets", "contiguous_nonoverlapping_data_ranges",
         "exact_dtype_byte_reconciliation", "reject_unsupported_dtypes"

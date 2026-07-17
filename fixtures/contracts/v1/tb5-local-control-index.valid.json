@@ -9,13 +9,13 @@
     "qw5_commit": "2020202020202020202020202020202020202020", "dirty": false,
     "parameters": ["--fixture"]
   },
-  "plan_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
-  "canonical_profile": "qw5-canonical-json-v1",
+  "plan_sha256": "c42b021dbf3ca36a4f3e01d2d5a7bd15e99dfb3ffbac36014100ee4826fc530b",
+  "canonical_profile": "qw5-json-c14n-v1",
   "entries": [
     {
       "control_id": "buffer_copy", "node": "A", "payload_bytes": 64,
       "relative_path": "controls/A/buffer_copy/64.json",
-      "sha256": "8ae517472ba69cfd6f3bde0e6fa75628fca5f449692ca2e362d0efcffbcf0145"
+      "sha256": "5627d7505874aeb8a25ea77ffcec32dbbf57d76c20dd0942639e30a7ce1204ce"
     }
   ]
 }

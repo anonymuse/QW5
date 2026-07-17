@@ -21,8 +21,7 @@
       "A": "4040404040404040404040404040404040404040404040404040404040404040",
       "B": "5050505050505050505050505050505050505050505050505050505050505050",
       "C": "6060606060606060606060606060606060606060606060606060606060606060"
-    },
-    "local_control_index_sha256": "3c7c0a23ff8532e81644dd9db40a882eecf35d10336846617ce792be5249ee96"
+    }
   },
   "seed": 42,
   "order_algorithm": "sha256-keyed-sort-v1",
@@ -126,6 +125,7 @@
     "required_state": "nominal",
     "precondition_duration_ns": 300000000000,
     "recovery_duration_ns": 300000000000,
-    "maximum_pause_ns": 900000000000
+    "maximum_pause_ns": 900000000000,
+    "regime_partition_policy": "exact_node_thermal_low_power_power_source_no_pooling"
   }
 }

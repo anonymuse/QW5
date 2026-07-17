@@ -14,7 +14,7 @@
   "identity": {
     "qw5_commit": "2222222222222222222222222222222222222222",
     "dirty": false,
-    "plan_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+    "plan_sha256": "c42b021dbf3ca36a4f3e01d2d5a7bd15e99dfb3ffbac36014100ee4826fc530b",
     "harness_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
     "route_proof_sha256": "4444444444444444444444444444444444444444444444444444444444444444",
     "inventory_sha256": {
@@ -22,7 +22,7 @@
       "B": "6666666666666666666666666666666666666666666666666666666666666666",
       "C": "7777777777777777777777777777777777777777777777777777777777777777"
     },
-    "local_control_index_sha256": "3c7c0a23ff8532e81644dd9db40a882eecf35d10336846617ce792be5249ee96"
+    "local_control_index_sha256": "027c07177781eb3a88203fd30af0670c2182b2a5744e39c6cd0f050ae45dc1ed"
   },
   "plan_seed": 42,
   "schedule_index": 15,
@@ -138,12 +138,14 @@
       {
         "flow_id": "a-b", "valid_attempts": 1, "invalid_attempts": 0,
         "throughput": {"sample_count": 0, "median": null, "median_absolute_deviation": null, "p95": null, "minimum": null, "maximum": null, "unit": "bytes_per_second"},
-        "round_trip_latency": {"sample_count": 100, "median": 1000, "median_absolute_deviation": 0, "p95": 1000, "minimum": 1000, "maximum": 1000, "unit": "ns"},
-        "thermal_regimes": ["nominal"]
+        "round_trip_latency": {"sample_count": 100, "median": 1000, "median_absolute_deviation": 0, "p95": 1000, "minimum": 1000, "maximum": 1000, "unit": "ns"}
       }
     ],
     "aggregate_throughput": {"sample_count": 0, "median": null, "median_absolute_deviation": null, "p95": null, "minimum": null, "maximum": null, "unit": "bytes_per_second"},
-    "thermal_regimes": ["nominal"]
+    "regime_identities": [
+      {"node": "A", "thermal_state": "nominal", "low_power_mode": false, "power_source": null},
+      {"node": "B", "thermal_state": "nominal", "low_power_mode": false, "power_source": null}
+    ]
   },
   "exclusions": [],
   "errors": []

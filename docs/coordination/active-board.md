@@ -1,6 +1,6 @@
 # Active task board
 
-Last updated: 2026-07-15
+Last updated: 2026-07-16
 
 ## Review
 
@@ -37,14 +37,22 @@ Last updated: 2026-07-15
   development/CI dependency; no production runtime dependency is added. External
   specifications and primary documentation are cited, not copied as implementation
   source.
-- **Owner decision recorded:** On 2026-07-15 the owner selected the empirical
-  coordinator-observed simultaneous-attempt inclusion rule (option 2). It is not a
-  clock result, actual-start estimate, or one-way-timing claim.
-- **Acceptance checks:** Fourteen machine-readable schemas pass draft 2020-12 meta-
+- **Owner decision recorded:** On 2026-07-16 the owner confirmed that
+  `coordinator_observed_window_v1` may be used solely for empirical attempt-inclusion
+  scoring and never as an actual-start estimate, start-skew bound, clock proof, or
+  one-way-delay claim.
+- **Review amendment:** The independent second-pass review requires an acyclic TB5
+  plan/evidence graph, resolver-only placement `GO`, exact non-pooled thermal/Low Power
+  Mode/power-source regimes, complete end-to-end evidence resolution, role-derived
+  model acquisition completeness, SafeTensors string-map metadata validation, and one
+  canonical JSON profile identifier. These remain contract changes only; M1 is not
+  authorized.
+- **Acceptance checks:** Sixteen machine-readable schemas pass draft 2020-12 meta-
   schema checks; positive fixtures pass schema and semantic validation; hostile
-  mutations fail for their required error codes; the generated 108-control and
-  246-cell bundles resolve every raw digest and projection; exact canonical, wire,
-  TB5-evidence, and SafeTensors vectors reproduce;
+  mutations fail for their required error codes; the generated acyclic 108-control/
+  246-cell graph resolves every plan, control, index, raw digest, and projection;
+  acquisition-plan/manifest and placement-graph/analysis bundles reconcile; exact
+  canonical, wire, TB5-evidence, and SafeTensors vectors reproduce;
   Markdown links resolve; existing Zig formatting, build, unit, smoke, and inventory
   checks pass; the complete diff passes evidence-label, unsupported-claim,
   privacy/secret, machine-identifier, attribution, provenance, and licensing review;

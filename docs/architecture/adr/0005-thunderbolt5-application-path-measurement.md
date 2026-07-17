@@ -43,6 +43,10 @@ The run is a machine-readable, owner-approved 246-cell plan with a preregistered
 and deterministic keyed order. The exact v1 wire format and golden bytes are frozen
 before harness implementation. Local buffer-copy, framing, and SHA-256 controls are
 measured separately and never silently subtracted or relabeled as link capacity.
+The plan cannot identify post-run controls: controls bind the plan, their index binds
+all 108 controls, measurements bind both the plan and control index, and the final
+summary resolves the 246-cell measurement index. This order prevents a circular
+digest dependency.
 
 Simultaneous-attempt inclusion follows ADR-0007. It uses a same-coordinator empirical
 observation and never interprets different-node clocks as a common timebase. Missing
@@ -55,7 +59,9 @@ or insufficient evidence makes the cell `UNDETERMINED`.
 - Simultaneous tests use one worker per directed flow and a start barrier; their
   eligibility is determined by the empirical rule in ADR-0007.
 - Warm-ups, invalid attempts, replacements, per-endpoint timestamps, socket bytes,
-  copy evidence, exclusions, and thermal regimes remain in raw artifacts.
+  copy evidence, exclusions, and exact per-node thermal/Low Power Mode/power-source
+  regimes remain in raw artifacts. A summary cannot pool valid attempts across any
+  of those regime boundaries.
 - Kernel and hardware copy counts may remain unavailable. QW5 reports only observable
   copies and never infers zero-copy from throughput.
 - A later transport can be evaluated by a new protocol revision or a separately

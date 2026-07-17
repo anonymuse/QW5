@@ -42,8 +42,10 @@ def is_qw5_datetime(value: object) -> bool:
 SCHEMA_FILES = {
     "qw5.hardware-inventory/v1": "hardware-inventory.schema.json",
     "qw5.memory-baseline/v1": "memory-baseline.schema.json",
+    "qw5.model-acquisition-plan/v1": "model-acquisition-plan.schema.json",
     "qw5.model-artifact-manifest/v1": "model-artifact-manifest.schema.json",
     "qw5.placement-analysis/v1": "placement-analysis.schema.json",
+    "qw5.placement-evidence-graph/v1": "placement-evidence-graph.schema.json",
     "qw5.safetensors-parser-profile/v1": "safetensors-parser-profile.schema.json",
     "qw5.tb5-link-summary/v1": "tb5-link-summary.schema.json",
     "qw5.tb5-local-control-index/v1": "tb5-local-control-index.schema.json",
@@ -95,6 +97,15 @@ ALL_GATES = {
     "scratch_bounded", "state_bounded", "transport_profile_available",
     "text_subset_proven",
 }
+REQUIRED_MEMORY_CLASSES = {
+    "allocator", "artifact_staging", "control", "fragmentation", "kv_state",
+    "quantization_metadata", "recurrent_state", "router_state", "scratch",
+    "transport", "weights",
+}
+# M1-14 must freeze and register deterministic rule evaluators before any positive
+# placement decision can pass bundle validation. Schema presence alone is not a rule
+# evaluation and a producer-supplied rule_id is never trusted.
+PLACEMENT_GATE_RULE_EVALUATORS: frozenset[str] = frozenset()
 DTYPES = {
     "BOOL": ("bool8", 1), "U8": ("uint8", 1), "I8": ("int8", 1),
     "U16": ("uint16", 2), "I16": ("int16", 2), "F16": ("float16", 2),
@@ -308,8 +319,73 @@ def semantic_hardware(data: dict[str, Any]) -> list[Issue]:
     return out
 
 
+def required_model_components(model_role: str) -> list[str]:
+    components = ["configuration", "language", "license", "tokenizer"]
+    if model_role == "flagship_target":
+        components.append("vision")
+    return components
+
+
+def model_component_coverage(files: list[dict[str, Any]]) -> set[str]:
+    covered: set[str] = set()
+    for row in files:
+        if row.get("status", "verified") != "verified":
+            continue
+        role = row["role"]
+        components = set(row["components"])
+        if role in {"configuration", "generation_configuration"} and "configuration" in components:
+            covered.add("configuration")
+        if role == "weight_shard":
+            covered.update(components & {"language", "vision"})
+        if role in {"license", "notice"} and "license" in components:
+            covered.add("license")
+        if role in {"tokenizer", "tokenizer_configuration", "special_tokens", "prompt_template"} and "tokenizer" in components:
+            covered.add("tokenizer")
+    return covered
+
+
+def semantic_model_acquisition_plan(data: dict[str, Any]) -> list[Issue]:
+    out: list[Issue] = []
+    fixture_role = data["artifact_role"] == "schema_fixture"
+    if fixture_role != (data["model_role"] == "schema_fixture"):
+        out.append(issue("MODEL_PLAN_ROLE", "/model_role", "schema-fixture and production model roles cannot be mixed"))
+    expected_provider = "fixture" if fixture_role else "huggingface"
+    if data["repository"]["provider"] != expected_provider:
+        out.append(issue("MODEL_PLAN_PROVIDER", "/repository/provider", f"expected {expected_provider}"))
+    if data["approval_status"] == "approved" and data["producer"]["dirty"]:
+        out.append(issue("MODEL_PLAN_DIRTY", "/approval_status", "an approved acquisition plan requires a clean producer"))
+    expected_repository = {
+        "first_working_target": "Qwen/Qwen3-Coder-Next",
+        "flagship_target": "Qwen/Qwen3.5-397B-A17B",
+    }.get(data["model_role"])
+    if expected_repository is not None and data["repository"]["repository_id"] != expected_repository:
+        out.append(issue("MODEL_PLAN_REPOSITORY", "/repository/repository_id", f"expected {expected_repository}"))
+    required_components = required_model_components(data["model_role"])
+    if data["required_components"] != required_components:
+        out.append(issue("MODEL_PLAN_COMPONENTS", "/required_components", f"expected {required_components}"))
+    expected_files = data["expected_files"]
+    paths = [row["path"] for row in expected_files]
+    if paths != sorted(paths) or not ids_unique(paths):
+        out.append(issue("MODEL_PLAN_PATH_ORDER", "/expected_files", "expected file paths must be unique and sorted"))
+    for index, row in enumerate(expected_files):
+        if row["components"] != sorted(row["components"]):
+            out.append(issue("MODEL_PLAN_FILE_COMPONENT_ORDER", f"/expected_files/{index}/components", "file components must be sorted"))
+        if not set(row["components"]).issubset(set(required_components)):
+            out.append(issue("MODEL_PLAN_FILE_COMPONENT", f"/expected_files/{index}/components", "file component is outside the required model-role set"))
+    missing = set(required_components) - model_component_coverage(expected_files)
+    if missing:
+        out.append(issue("MODEL_PLAN_ROLE_COVERAGE", "/expected_files", f"missing required component bytes/metadata: {sorted(missing)}"))
+    return out
+
+
 def semantic_model(data: dict[str, Any]) -> list[Issue]:
     out: list[Issue] = []
+    fixture_role = data["artifact_role"] == "schema_fixture"
+    if fixture_role != (data["selection"]["model_role"] == "schema_fixture"):
+        out.append(issue("MODEL_ROLE", "/selection/model_role", "schema-fixture and production model roles cannot be mixed"))
+    expected_provider = "fixture" if fixture_role else "huggingface"
+    if data["repository"]["provider"] != expected_provider:
+        out.append(issue("MODEL_PROVIDER", "/repository/provider", f"expected {expected_provider}"))
     files = data["files"]
     paths = [row["path"] for row in files]
     if not ids_unique(paths):
@@ -321,15 +397,18 @@ def semantic_model(data: dict[str, Any]) -> list[Issue]:
         out.append(issue("MODEL_EXPECTED_PATH_ORDER", "/selection/expected_paths", "expected paths must be unique and sorted"))
     if paths != expected_paths:
         out.append(issue("MODEL_EXPECTED_PATHS", "/files", "file table must exactly match the frozen expected path set"))
-    role_set = {row["role"] for row in files if row["status"] == "verified"}
-    role_requirements = {
-        "configuration": {"configuration"}, "language": {"weight_shard"},
-        "license": {"license"}, "tokenizer": {"tokenizer", "tokenizer_configuration"},
-    }
-    for component in data["selection"]["components"]:
-        required = role_requirements.get(component)
-        if required and not (required & role_set):
-            out.append(issue("MODEL_ROLE_COVERAGE", "/files", f"component {component} has no verified file role"))
+    components = data["selection"]["components"]
+    required_components = required_model_components(data["selection"]["model_role"])
+    if components != required_components:
+        out.append(issue("MODEL_ROLE_COMPONENTS", "/selection/components", f"expected {required_components}"))
+    for index, row in enumerate(files):
+        if row["components"] != sorted(row["components"]):
+            out.append(issue("MODEL_FILE_COMPONENT_ORDER", f"/files/{index}/components", "file components must be sorted"))
+        if not set(row["components"]).issubset(set(components)):
+            out.append(issue("MODEL_FILE_COMPONENT", f"/files/{index}/components", "file component is outside the selected model-role set"))
+    missing_components = set(required_components) - model_component_coverage(files)
+    if missing_components:
+        out.append(issue("MODEL_ROLE_COVERAGE", "/files", f"missing verified component bytes/metadata: {sorted(missing_components)}"))
     for index, row in enumerate(files):
         if row["status"] != "verified":
             continue
@@ -355,6 +434,57 @@ def semantic_model(data: dict[str, Any]) -> list[Issue]:
     if completeness["status"] == "complete":
         if len(verified) != len(files) or missing or data["unexpected_files"] or completeness["errors"]:
             out.append(issue("MODEL_COMPLETE_STATUS", "/completeness/status", "complete requires all files verified and no missing, unexpected, or error entries"))
+    return out
+
+
+def validate_model_evidence_bundle(
+    plan: dict[str, Any],
+    manifest: dict[str, Any],
+) -> list[Issue]:
+    out: list[Issue] = []
+    plan_issues = validate_instance(plan, "qw5.model-acquisition-plan/v1")
+    manifest_issues = validate_instance(manifest, "qw5.model-artifact-manifest/v1")
+    out.extend(plan_issues)
+    out.extend(manifest_issues)
+    if any(item.code.startswith("SCHEMA_") for item in plan_issues + manifest_issues):
+        return out
+    plan_digest = canonical_digest(plan)
+    if manifest["selection"]["acquisition_plan_sha256"] != plan_digest:
+        out.append(issue("MODEL_PLAN_DIGEST", "/selection/acquisition_plan_sha256", "manifest does not resolve to the canonical acquisition plan"))
+    plan_repository = plan["repository"]
+    manifest_repository = manifest["repository"]
+    if (
+        plan_repository["provider"] != manifest_repository["provider"]
+        or plan_repository["repository_id"] != manifest_repository["repository_id"]
+        or plan_repository["immutable_revision"] != manifest_repository["immutable_revision"]
+    ):
+        out.append(issue("MODEL_PLAN_REPOSITORY", "/repository", "manifest repository identity differs from the resolved acquisition plan"))
+    selection = manifest["selection"]
+    if selection["model_role"] != plan["model_role"]:
+        out.append(issue("MODEL_PLAN_ROLE", "/selection/model_role", "manifest model role differs from the acquisition plan"))
+    if selection["revision_listing_sha256"] != plan["revision_listing_sha256"]:
+        out.append(issue("MODEL_PLAN_REVISION_LISTING", "/selection/revision_listing_sha256", "revision-listing identity differs from the acquisition plan"))
+    expected_paths = [row["path"] for row in plan["expected_files"]]
+    if selection["components"] != plan["required_components"] or selection["expected_paths"] != expected_paths:
+        out.append(issue("MODEL_PLAN_SELECTION", "/selection", "manifest component/path projection differs from the acquisition plan"))
+    if manifest["included_patterns"] != plan["included_patterns"] or manifest["excluded_patterns"] != plan["excluded_patterns"]:
+        out.append(issue("MODEL_PLAN_PATTERNS", "/included_patterns", "manifest selection patterns differ from the acquisition plan"))
+    manifest_projection = [
+        {"path": row["path"], "role": row["role"], "components": row["components"]}
+        for row in manifest["files"]
+    ]
+    if manifest_projection != plan["expected_files"]:
+        out.append(issue("MODEL_PLAN_FILE_TABLE", "/files", "manifest paths, roles, or components differ from the acquisition plan"))
+    if (
+        manifest["artifact_role"] == "model_artifact_manifest"
+        and manifest["completeness"]["status"] == "complete"
+        and (
+            plan["artifact_role"] != "model_acquisition_plan"
+            or plan["approval_status"] != "approved"
+            or plan["producer"]["dirty"]
+        )
+    ):
+        out.append(issue("MODEL_PLAN_APPROVAL", "/selection/acquisition_plan_sha256", "a production complete manifest requires a clean owner-approved production acquisition plan"))
     return out
 
 
@@ -588,6 +718,22 @@ def semantic_local_control(data: dict[str, Any]) -> list[Issue]:
     expected_peak = 2 * data["payload_bytes"]
     if data["buffer_policy"]["peak_application_buffer_bytes"] < expected_peak:
         out.append(issue("TB_CONTROL_BUFFER_BOUND", "/buffer_policy/peak_application_buffer_bytes", f"expected at least {expected_peak}"))
+    regime = data["regime"]
+    if regime["node"] != data["node"]:
+        out.append(issue("TB_CONTROL_REGIME_NODE", "/regime/node", "regime node must match the control node"))
+    if regime["observation_end_monotonic_ns"] < regime["observation_start_monotonic_ns"]:
+        out.append(issue("TB_CONTROL_REGIME_TIME", "/regime", "regime observation interval regresses"))
+    stable = (
+        regime["start_thermal_state"] == regime["end_thermal_state"]
+        and regime["start_low_power_mode"] == regime["end_low_power_mode"]
+        and regime["start_power_source"] == regime["end_power_source"]
+    )
+    if data["status"] == "COMPLETE" and not stable:
+        out.append(issue(
+            "TB_CONTROL_REGIME_TRANSITION",
+            "/regime",
+            "a complete local control must retain one exact thermal, low-power, and power-source regime",
+        ))
     if data["artifact_role"] == "local_control" and data["producer"]["dirty"]:
         out.append(issue("TB_MEASURED_DIRTY", "/producer/dirty", "physical measured local controls require a clean producer"))
     return out
@@ -647,7 +793,85 @@ def semantic_measurement_index(data: dict[str, Any]) -> list[Issue]:
     return out
 
 
-def semantic_placement(data: dict[str, Any]) -> list[Issue]:
+def semantic_placement_evidence_graph(data: dict[str, Any]) -> list[Issue]:
+    out: list[Issue] = []
+    nodes = data["nodes"]
+    node_ids = [row["node_id"] for row in nodes]
+    paths = [row["relative_path"] for row in nodes]
+    if not ids_unique(node_ids) or not ids_unique(paths):
+        out.append(issue("PLACEMENT_GRAPH_NODE_UNIQUE", "/nodes", "evidence node IDs and paths must be unique"))
+    node_set = set(node_ids)
+    input_roles = [
+        row["role"] for row in nodes
+        if row["role"] not in {"quality_evidence", "allocation_evidence", "gate_evidence"}
+    ]
+    if not ids_unique(input_roles):
+        out.append(issue("PLACEMENT_GRAPH_INPUT_ROLE_UNIQUE", "/nodes", "each placement input role must occur at most once"))
+    nodes_by_id = {row["node_id"]: row for row in nodes}
+    required_roles_by_passed_gate = {
+        "artifact_complete": {"model_manifest"},
+        "tensor_reconciled": {"tensor_inventory"},
+        "layout_complete": {"quantization_layout"},
+        "memory_baseline_accepted": {"memory_baseline_a", "memory_baseline_b", "memory_baseline_c"},
+        "memory_nonnegative": {"reserve_headroom_policy"},
+        "quality_available": {"quality_evidence"},
+        "scratch_bounded": {"formula_set"},
+        "state_bounded": {"formula_set"},
+        "transport_profile_available": {"link_summary"},
+        "text_subset_proven": {"text_subset_dependency"},
+    }
+    gates = data["gate_resolutions"]
+    gate_ids = [row["gate_id"] for row in gates]
+    if set(gate_ids) != ALL_GATES or not ids_unique(gate_ids):
+        out.append(issue("PLACEMENT_GRAPH_GATE_COVERAGE", "/gate_resolutions", "graph must resolve every gate exactly once"))
+    for index, row in enumerate(gates):
+        missing = set(row["evidence_node_ids"]) - node_set
+        if missing:
+            out.append(issue("PLACEMENT_GRAPH_NODE_REFERENCE", f"/gate_resolutions/{index}/evidence_node_ids", f"unknown nodes {sorted(missing)}"))
+        if row["disposition"] in {"passed", "failed"} and (row["rule_id"] is None or not row["evidence_node_ids"]):
+            out.append(issue("PLACEMENT_GRAPH_GATE_EVIDENCE", f"/gate_resolutions/{index}", "passed or failed gate requires a rule and resolved evidence nodes"))
+        if row["disposition"] == "not_applicable" and (row["rule_id"] is not None or row["evidence_node_ids"]):
+            out.append(issue("PLACEMENT_GRAPH_GATE_EVIDENCE", f"/gate_resolutions/{index}", "not-applicable gate cannot carry a rule or success evidence"))
+        referenced = [nodes_by_id[node_id] for node_id in row["evidence_node_ids"] if node_id in nodes_by_id]
+        if row["disposition"] in {"passed", "failed"} and any(
+            node["acceptance_status"] != "accepted" for node in referenced
+        ):
+            out.append(issue("PLACEMENT_GRAPH_GATE_ACCEPTANCE", f"/gate_resolutions/{index}/evidence_node_ids", "passed or failed gate evidence must be accepted"))
+        if row["disposition"] == "passed":
+            roles = {node["role"] for node in referenced}
+            required_roles = required_roles_by_passed_gate[row["gate_id"]]
+            if not required_roles.issubset(roles):
+                out.append(issue(
+                    "PLACEMENT_GRAPH_GATE_BINDING",
+                    f"/gate_resolutions/{index}/evidence_node_ids",
+                    f"passed {row['gate_id']} gate requires evidence roles {sorted(required_roles)}",
+                ))
+    allocations = data["allocation_resolutions"]
+    allocation_ids = [row["allocation_id"] for row in allocations]
+    if not ids_unique(allocation_ids):
+        out.append(issue("PLACEMENT_GRAPH_ALLOCATION_UNIQUE", "/allocation_resolutions", "allocation resolutions must be unique"))
+    for index, row in enumerate(allocations):
+        references = set(row["evidence_node_ids"])
+        if row["zero_bytes_proof_node_id"] is not None:
+            references.add(row["zero_bytes_proof_node_id"])
+        missing = references - node_set
+        if missing:
+            out.append(issue("PLACEMENT_GRAPH_NODE_REFERENCE", f"/allocation_resolutions/{index}", f"unknown nodes {sorted(missing)}"))
+        accepted_references = [nodes_by_id[node_id] for node_id in references if node_id in nodes_by_id]
+        if any(node["acceptance_status"] != "accepted" for node in accepted_references):
+            out.append(issue("PLACEMENT_GRAPH_ALLOCATION_ACCEPTANCE", f"/allocation_resolutions/{index}", "allocation evidence and zero-byte proofs must be accepted"))
+    allocation_classes = {row["memory_class"] for row in allocations}
+    passed_gates = {row["gate_id"] for row in gates if row["disposition"] == "passed"}
+    if "scratch_bounded" in passed_gates and "scratch" not in allocation_classes:
+        out.append(issue("PLACEMENT_GRAPH_GATE_BINDING", "/allocation_resolutions", "passed scratch gate requires a scratch allocation resolution"))
+    if "state_bounded" in passed_gates and not {"kv_state", "recurrent_state", "router_state"}.issubset(allocation_classes):
+        out.append(issue("PLACEMENT_GRAPH_GATE_BINDING", "/allocation_resolutions", "passed state gate requires KV, recurrent, and router state allocation resolutions"))
+    if set(data["required_memory_classes"]) != REQUIRED_MEMORY_CLASSES:
+        out.append(issue("PLACEMENT_GRAPH_MEMORY_CLASSES", "/required_memory_classes", "required memory classes are not exhaustive"))
+    return out
+
+
+def semantic_placement(data: dict[str, Any], allow_resolved_go: bool = False) -> list[Issue]:
     out: list[Issue] = []
     inputs = data["inputs"]
     expected_input_schemas = {
@@ -698,6 +922,10 @@ def semantic_placement(data: dict[str, Any]) -> list[Issue]:
             high = row["range"]["high_bytes"]
             if low > high or not low <= row["bytes"] <= high:
                 out.append(issue("PLACEMENT_RANGE", f"/allocations/{index}/range", "range must contain the selected byte value"))
+        if row["bytes"] == 0 and row["zero_bytes_proof_node_id"] is None:
+            out.append(issue("PLACEMENT_ZERO_BYTES_PROOF", f"/allocations/{index}/zero_bytes_proof_node_id", "a zero-byte class requires a resolved architecture proof"))
+        if row["bytes"] != 0 and row["zero_bytes_proof_node_id"] is not None:
+            out.append(issue("PLACEMENT_ZERO_BYTES_PROOF", f"/allocations/{index}/zero_bytes_proof_node_id", "a nonzero allocation cannot cite a zero-byte proof"))
     budgets = data["node_budgets"]
     nodes = [row["node"] for row in budgets]
     if not ids_unique(nodes):
@@ -754,10 +982,10 @@ def semantic_placement(data: dict[str, Any]) -> list[Issue]:
     for index, row in enumerate(evaluations):
         if row["disposition"] != expected_dispositions.get(row["gate_id"]):
             out.append(issue("PLACEMENT_GATE_EVALUATION", f"/decision/gate_evaluations/{index}", "evaluation disagrees with gate partition"))
-        if row["disposition"] in {"passed", "failed"} and row["evidence_sha256"] is None:
-            out.append(issue("PLACEMENT_GATE_EVIDENCE", f"/decision/gate_evaluations/{index}/evidence_sha256", "passed or failed gate requires evidence"))
-        if row["disposition"] == "not_applicable" and row["evidence_sha256"] is not None:
-            out.append(issue("PLACEMENT_GATE_EVIDENCE", f"/decision/gate_evaluations/{index}/evidence_sha256", "not-applicable gate cannot carry success evidence"))
+        if row["disposition"] in {"passed", "failed"} and (row["rule_id"] is None or not row["evidence_node_ids"]):
+            out.append(issue("PLACEMENT_GATE_EVIDENCE", f"/decision/gate_evaluations/{index}", "passed or failed gate requires a rule and evidence nodes"))
+        if row["disposition"] == "not_applicable" and (row["rule_id"] is not None or row["evidence_node_ids"]):
+            out.append(issue("PLACEMENT_GATE_EVIDENCE", f"/decision/gate_evaluations/{index}", "not-applicable gate cannot carry a rule or success evidence"))
     text_subset = data["model"]["component_scope"] == "text_execution_subset"
     expected_not_applicable: set[str] = set()
     if text_subset:
@@ -800,6 +1028,198 @@ def semantic_placement(data: dict[str, Any]) -> list[Issue]:
         out.append(issue("PLACEMENT_OUTCOME_DERIVATION", "/decision/outcome", f"expected {expected_outcome} from accepted lineage, gate outcomes, and headroom"))
     if decision["outcome"] == "GO" and (applicable != passed or not lineage_accepted or decision["next_permitted_task"] is None):
         out.append(issue("PLACEMENT_GO_GATES", "/decision/outcome", "GO requires every applicable gate passed, accepted lineage, nonnegative headroom, and a next task"))
+    if decision["outcome"] == "GO":
+        allocation_classes = {row["class"] for row in allocations}
+        if allocation_classes != REQUIRED_MEMORY_CLASSES:
+            out.append(issue("PLACEMENT_MEMORY_CLASS_COVERAGE", "/allocations", f"GO requires all memory classes; missing {sorted(REQUIRED_MEMORY_CLASSES - allocation_classes)}"))
+        if "quality_available" in passed and data["quantization_candidate"]["quality_evidence_sha256"] is None:
+            out.append(issue("PLACEMENT_QUALITY_EVIDENCE", "/quantization_candidate/quality_evidence_sha256", "a passed quality gate requires an identified quality artifact"))
+        if not allow_resolved_go:
+            out.append(issue(
+                "PLACEMENT_GO_REQUIRES_RESOLVED_GRAPH",
+                "/decision/outcome",
+                "GO is accepted only through materialized placement-evidence-graph resolution",
+            ))
+    return out
+
+
+def placement_input_roles(data: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    inputs = data["inputs"]
+    roles: dict[str, dict[str, Any]] = {
+        "model_manifest": inputs["model_manifest"],
+        "tensor_inventory": inputs["tensor_inventory"],
+        "hardware_inventory_a": inputs["hardware_inventory"]["A"],
+        "hardware_inventory_b": inputs["hardware_inventory"]["B"],
+        "hardware_inventory_c": inputs["hardware_inventory"]["C"],
+        "memory_baseline_a": inputs["memory_baseline"]["A"],
+        "memory_baseline_b": inputs["memory_baseline"]["B"],
+        "memory_baseline_c": inputs["memory_baseline"]["C"],
+        "quantization_layout": inputs["quantization_layout"],
+        "formula_set": inputs["formula_set"],
+        "gate_rule_set": inputs["gate_rule_set"],
+        "placement_candidate_set": inputs["placement_candidate_set"],
+        "solver_objective": inputs["solver_objective"],
+        "reserve_headroom_policy": inputs["reserve_headroom_policy"],
+    }
+    if inputs["link_summary"] is not None:
+        roles["link_summary"] = inputs["link_summary"]
+    if inputs["text_subset_dependency"] is not None:
+        roles["text_subset_dependency"] = inputs["text_subset_dependency"]
+    return roles
+
+
+def validate_placement_evidence_bundle(
+    analysis: dict[str, Any],
+    graph: dict[str, Any],
+    artifacts_by_path: dict[str, dict[str, Any]],
+) -> list[Issue]:
+    out: list[Issue] = []
+    graph_issues = validate_instance(graph, "qw5.placement-evidence-graph/v1")
+    analysis_schema = load_json(SCHEMA_DIR / SCHEMA_FILES["qw5.placement-analysis/v1"])
+    analysis_structural = schema_issues(analysis, analysis_schema)
+    out.extend(graph_issues)
+    out.extend(analysis_structural)
+    if graph_issues or analysis_structural:
+        return out
+    graph_digest = canonical_digest(graph)
+    if analysis["evidence_graph_sha256"] != graph_digest:
+        out.append(issue("PLACEMENT_GRAPH_DIGEST", "/evidence_graph_sha256", "analysis does not reference the canonical evidence graph"))
+    expected_identity = {
+        "repository_id": analysis["model"]["repository_id"],
+        "immutable_revision": analysis["model"]["immutable_revision"],
+        "component_scope": analysis["model"]["component_scope"],
+        "phase": analysis["workload"]["phase"],
+        "context_tokens": analysis["workload"]["context_tokens"],
+        "candidate_id": analysis["quantization_candidate"]["candidate_id"],
+    }
+    if graph["analysis_identity"] != expected_identity:
+        out.append(issue("PLACEMENT_GRAPH_IDENTITY", "/evidence_graph_sha256", "evidence graph identifies a different analysis"))
+    nodes_by_id = {row["node_id"]: row for row in graph["nodes"]}
+    nodes_by_role = {row["role"]: row for row in graph["nodes"] if row["role"] not in {"quality_evidence", "allocation_evidence", "gate_evidence"}}
+    expected_inputs = placement_input_roles(analysis)
+    if set(nodes_by_role) != set(expected_inputs):
+        out.append(issue("PLACEMENT_GRAPH_INPUT_COVERAGE", "/evidence_graph_sha256", "evidence graph input roles do not match analysis inputs"))
+    for role, record in expected_inputs.items():
+        node = nodes_by_role.get(role)
+        if node is None:
+            continue
+        projection = {
+            "sha256": node["sha256"],
+            "schema": node["schema"],
+            "evidence_class": node["evidence_class"],
+            "acceptance_status": node["acceptance_status"],
+        }
+        if projection != record:
+            out.append(issue("PLACEMENT_GRAPH_INPUT_PROJECTION", "/inputs", f"graph node for {role} differs from the analysis input"))
+    graph_gates = {
+        row["gate_id"]: {
+            "gate_id": row["gate_id"],
+            "disposition": row["disposition"],
+            "rule_id": row["rule_id"],
+            "evidence_node_ids": row["evidence_node_ids"],
+        }
+        for row in graph["gate_resolutions"]
+    }
+    for index, evaluation in enumerate(analysis["decision"]["gate_evaluations"]):
+        projection = {
+            "gate_id": evaluation["gate_id"],
+            "disposition": evaluation["disposition"],
+            "rule_id": evaluation["rule_id"],
+            "evidence_node_ids": evaluation["evidence_node_ids"],
+        }
+        if graph_gates.get(evaluation["gate_id"]) != projection:
+            out.append(issue("PLACEMENT_GRAPH_GATE_PROJECTION", f"/decision/gate_evaluations/{index}", "analysis gate differs from its evidence-graph resolution"))
+    graph_allocations = {row["allocation_id"]: row for row in graph["allocation_resolutions"]}
+    for index, allocation in enumerate(analysis["allocations"]):
+        projection = {
+            "allocation_id": allocation["allocation_id"],
+            "memory_class": allocation["class"],
+            "formula_id": allocation["formula_id"],
+            "evidence_node_ids": allocation["evidence_node_ids"],
+            "zero_bytes_proof_node_id": allocation["zero_bytes_proof_node_id"],
+        }
+        if graph_allocations.get(allocation["allocation_id"]) != projection:
+            out.append(issue("PLACEMENT_GRAPH_ALLOCATION_PROJECTION", f"/allocations/{index}", "allocation differs from its evidence-graph resolution"))
+    if set(graph_allocations) != {row["allocation_id"] for row in analysis["allocations"]}:
+        out.append(issue("PLACEMENT_GRAPH_ALLOCATION_COVERAGE", "/allocations", "graph and analysis allocation IDs differ"))
+    unresolved_nodes: set[str] = set()
+    resolved_artifacts_by_id: dict[str, dict[str, Any]] = {}
+    for index, node in enumerate(graph["nodes"]):
+        if node["acceptance_status"] != "accepted":
+            unresolved_nodes.add(node["node_id"])
+        artifact = artifacts_by_path.get(node["relative_path"])
+        if artifact is None:
+            unresolved_nodes.add(node["node_id"])
+            out.append(issue("PLACEMENT_GRAPH_NODE_RESOLUTION", f"/nodes/{index}/relative_path", "evidence node path did not resolve"))
+            continue
+        if canonical_digest(artifact) != node["sha256"]:
+            unresolved_nodes.add(node["node_id"])
+            out.append(issue("PLACEMENT_GRAPH_NODE_DIGEST", f"/nodes/{index}/sha256", "resolved artifact digest differs from the graph node"))
+        schema_id = artifact.get("schema")
+        if schema_id != node["schema"] or schema_id not in SCHEMA_FILES:
+            unresolved_nodes.add(node["node_id"])
+            out.append(issue("PLACEMENT_GRAPH_NODE_SCHEMA", f"/nodes/{index}/schema", "resolved artifact schema is unavailable or differs from the graph node"))
+            continue
+        artifact_issues = validate_instance(artifact, schema_id)
+        if artifact_issues:
+            unresolved_nodes.add(node["node_id"])
+            out.extend(artifact_issues)
+        else:
+            resolved_artifacts_by_id[node["node_id"]] = artifact
+        if artifact.get("evidence_class") != node["evidence_class"]:
+            unresolved_nodes.add(node["node_id"])
+            out.append(issue("PLACEMENT_GRAPH_NODE_EVIDENCE_CLASS", f"/nodes/{index}/evidence_class", "resolved artifact evidence class differs from the graph node"))
+    manifest_node = nodes_by_role.get("model_manifest")
+    tensor_node = nodes_by_role.get("tensor_inventory")
+    if manifest_node is not None and tensor_node is not None:
+        manifest_artifact = resolved_artifacts_by_id.get(manifest_node["node_id"])
+        tensor_artifact = resolved_artifacts_by_id.get(tensor_node["node_id"])
+        if manifest_artifact is not None and tensor_artifact is not None:
+            if tensor_artifact["model_manifest_sha256"] != manifest_node["sha256"]:
+                unresolved_nodes.add(tensor_node["node_id"])
+                out.append(issue("PLACEMENT_GRAPH_MODEL_LINEAGE", "/inputs/tensor_inventory", "tensor inventory does not bind the resolved model manifest"))
+            expected_model_identity = {
+                "repository_id": manifest_artifact["repository"]["repository_id"],
+                "immutable_revision": manifest_artifact["repository"]["immutable_revision"],
+            }
+            if tensor_artifact["model"] != expected_model_identity or analysis["model"]["repository_id"] != expected_model_identity["repository_id"] or analysis["model"]["immutable_revision"] != expected_model_identity["immutable_revision"]:
+                unresolved_nodes.update({manifest_node["node_id"], tensor_node["node_id"]})
+                out.append(issue("PLACEMENT_GRAPH_MODEL_LINEAGE", "/model", "analysis, manifest, and tensor inventory model identities differ"))
+    if graph_gates["artifact_complete"]["disposition"] == "passed" and manifest_node is not None:
+        manifest_artifact = resolved_artifacts_by_id.get(manifest_node["node_id"])
+        if manifest_artifact is not None and manifest_artifact["completeness"]["status"] != "complete":
+            unresolved_nodes.add(manifest_node["node_id"])
+            out.append(issue("PLACEMENT_GRAPH_GATE_DERIVATION", "/decision/gate_evaluations", "artifact_complete cannot pass for an incomplete manifest"))
+    if graph_gates["memory_baseline_accepted"]["disposition"] == "passed":
+        for role in ("memory_baseline_a", "memory_baseline_b", "memory_baseline_c"):
+            node = nodes_by_role.get(role)
+            artifact = resolved_artifacts_by_id.get(node["node_id"]) if node is not None else None
+            if artifact is not None and artifact["summary"]["status"] != "COMPLETE":
+                unresolved_nodes.add(node["node_id"])
+                out.append(issue("PLACEMENT_GRAPH_GATE_DERIVATION", "/decision/gate_evaluations", f"memory_baseline_accepted cannot pass for incomplete {role}"))
+    out.extend(semantic_placement(analysis, allow_resolved_go=True))
+    if analysis["decision"]["outcome"] == "GO":
+        unresolved_rule_ids = sorted({
+            row["rule_id"] or "<missing>"
+            for row in analysis["decision"]["gate_evaluations"]
+            if row["disposition"] == "passed" and row["rule_id"] not in PLACEMENT_GATE_RULE_EVALUATORS
+        })
+        if unresolved_rule_ids:
+            out.append(issue(
+                "PLACEMENT_GO_UNRESOLVED_RULE",
+                "/decision/gate_evaluations",
+                f"GO requires registered deterministic gate evaluators; unresolved rules {unresolved_rule_ids}",
+            ))
+    if analysis["decision"]["outcome"] == "GO" and unresolved_nodes:
+        out.append(issue("PLACEMENT_GO_UNRESOLVED_GRAPH", "/decision/outcome", f"GO has unresolved evidence nodes {sorted(unresolved_nodes)}"))
+    if analysis["decision"]["outcome"] == "GO" and "quality_available" in analysis["decision"]["passed_gates"]:
+        quality_nodes = [
+            nodes_by_id[node_id]
+            for node_id in graph_gates["quality_available"]["evidence_node_ids"]
+            if node_id in nodes_by_id and nodes_by_id[node_id]["role"] == "quality_evidence"
+        ]
+        if not quality_nodes or analysis["quantization_candidate"]["quality_evidence_sha256"] not in {row["sha256"] for row in quality_nodes}:
+            out.append(issue("PLACEMENT_QUALITY_EVIDENCE", "/quantization_candidate/quality_evidence_sha256", "quality identity does not resolve through the quality gate"))
     return out
 
 
@@ -955,7 +1375,7 @@ def semantic_tb_measurement(data: dict[str, Any]) -> list[Issue]:
     flow_rates: dict[str, list[int]] = defaultdict(list)
     flow_latencies: dict[str, list[int]] = defaultdict(list)
     aggregate_rates: list[int] = []
-    valid_thermal_regimes: set[str] = set()
+    valid_regime_by_node: dict[str, tuple[str, bool, str | None]] = {}
     for attempt_index, attempt in enumerate(attempts):
         base = f"/attempts/{attempt_index}"
         phase_indexes[attempt["phase"]].append(attempt["attempt_index"])
@@ -988,11 +1408,36 @@ def semantic_tb_measurement(data: dict[str, Any]) -> list[Issue]:
         thermal_nodes = [row["node"] for row in attempt["thermal"]]
         if thermal_nodes != active_nodes:
             out.append(issue("TB_THERMAL_COVERAGE", base + "/thermal", f"expected nodes {active_nodes}"))
+        attempt_regime: dict[str, tuple[str, bool, str | None]] = {}
         for thermal_index, thermal in enumerate(attempt["thermal"]):
             if thermal["end_monotonic_ns"] < thermal["start_monotonic_ns"]:
                 out.append(issue("TB_THERMAL_TIME", base + f"/thermal/{thermal_index}", "thermal timestamps regress"))
-            if attempt["phase"] == "measurement" and attempt["valid"]:
-                valid_thermal_regimes.update((thermal["start_state"], thermal["end_state"]))
+            if attempt["valid"]:
+                stable = (
+                    thermal["start_state"] == thermal["end_state"]
+                    and thermal["start_low_power_mode"] == thermal["end_low_power_mode"]
+                    and thermal["start_power_source"] == thermal["end_power_source"]
+                )
+                if not stable:
+                    out.append(issue(
+                        "TB_REGIME_TRANSITION",
+                        base + f"/thermal/{thermal_index}",
+                        "a valid attempt cannot cross a thermal, low-power, or power-source regime",
+                    ))
+                attempt_regime[thermal["node"]] = (
+                    thermal["start_state"],
+                    thermal["start_low_power_mode"],
+                    thermal["start_power_source"],
+                )
+        if attempt["phase"] == "measurement" and attempt["valid"]:
+            if not valid_regime_by_node:
+                valid_regime_by_node = attempt_regime
+            elif attempt_regime != valid_regime_by_node:
+                out.append(issue(
+                    "TB_REGIME_MIXED",
+                    base + "/thermal",
+                    "valid measurement attempts in one cell must share one exact per-node regime identity",
+                ))
         sample_ids = tuple(row["flow_id"] for row in attempt["flows"])
         if sample_ids != flow_ids:
             out.append(issue("TB_ATTEMPT_FLOW_SET", base + "/flows", f"expected {flow_ids}, got {sample_ids}"))
@@ -1109,13 +1554,20 @@ def semantic_tb_measurement(data: dict[str, Any]) -> list[Issue]:
             out.append(issue("TB_FLOW_SUMMARY_METRIC", f"/summary/flow_summaries/{index}/throughput", f"expected {expected_throughput}"))
         if row["round_trip_latency"] != expected_latency:
             out.append(issue("TB_FLOW_SUMMARY_METRIC", f"/summary/flow_summaries/{index}/round_trip_latency", f"expected {expected_latency}"))
-        if row["thermal_regimes"] != sorted(valid_thermal_regimes):
-            out.append(issue("TB_THERMAL_SUMMARY", f"/summary/flow_summaries/{index}/thermal_regimes", f"expected {sorted(valid_thermal_regimes)}"))
     expected_aggregate = expected_metric(aggregate_rates, "bytes_per_second")
     if summary["aggregate_throughput"] != expected_aggregate:
         out.append(issue("TB_AGGREGATE_SUMMARY", "/summary/aggregate_throughput", f"expected {expected_aggregate}"))
-    if summary["thermal_regimes"] != sorted(valid_thermal_regimes):
-        out.append(issue("TB_THERMAL_SUMMARY", "/summary/thermal_regimes", f"expected {sorted(valid_thermal_regimes)}"))
+    expected_regimes = [
+        {
+            "node": node,
+            "thermal_state": values[0],
+            "low_power_mode": values[1],
+            "power_source": values[2],
+        }
+        for node, values in sorted(valid_regime_by_node.items())
+    ]
+    if summary["regime_identities"] != expected_regimes:
+        out.append(issue("TB_REGIME_SUMMARY", "/summary/regime_identities", f"expected {expected_regimes}"))
     invalid_ids = {row["attempt_id"] for row in attempts if not row["valid"]}
     excluded_ids = {row["attempt_id"] for row in data["exclusions"]}
     if invalid_ids != excluded_ids or len(excluded_ids) != len(data["exclusions"]):
@@ -1275,8 +1727,9 @@ def semantic_link_summary(data: dict[str, Any]) -> list[Issue]:
         for flow_index, flow in enumerate(row["flow_summaries"]):
             if flow["throughput"]["unit"] != "bytes_per_second" or flow["round_trip_latency"]["unit"] != "ns":
                 out.append(issue("TB_SUMMARY_METRIC_UNIT", base + f"/flow_summaries/{flow_index}", "flow metric units are fixed"))
-        if row["thermal_regimes"] != sorted(row["thermal_regimes"]):
-            out.append(issue("TB_SUMMARY_THERMAL_ORDER", base + "/thermal_regimes", "thermal regimes must be sorted"))
+        regime_nodes = [item["node"] for item in row["regime_identities"]]
+        if regime_nodes != sorted(regime_nodes) or not ids_unique(regime_nodes):
+            out.append(issue("TB_SUMMARY_REGIME_ORDER", base + "/regime_identities", "regime identities must be unique and sorted by node"))
         if row["status"] == "COMPLETE":
             if row["mode"] == "stream":
                 expected_count = 10
@@ -1310,20 +1763,80 @@ def canonical_digest(data: Any) -> str:
 
 def validate_tb5_evidence_bundle(
     summary: dict[str, Any],
+    plan: dict[str, Any],
+    local_control_index: dict[str, Any],
+    local_controls_by_path: dict[str, dict[str, Any]],
     measurement_index: dict[str, Any],
     raw_by_path: dict[str, dict[str, Any]],
     synchronization_by_digest: dict[str, dict[str, Any]] | None = None,
 ) -> list[Issue]:
     out: list[Issue] = []
     synchronization_by_digest = synchronization_by_digest or {}
+    root_issues: list[Issue] = []
+    for artifact, schema_id in (
+        (summary, "qw5.tb5-link-summary/v1"),
+        (plan, "qw5.tb5-run-plan/v1"),
+        (local_control_index, "qw5.tb5-local-control-index/v1"),
+        (measurement_index, "qw5.tb5-measurement-index/v1"),
+    ):
+        root_issues.extend(validate_instance(artifact, schema_id))
+    out.extend(root_issues)
+    if any(item.code.startswith("SCHEMA_") for item in root_issues):
+        return out
+    plan_digest = canonical_digest(plan)
+    if summary["plan_sha256"] != plan_digest:
+        out.append(issue("TB_GRAPH_PLAN_DIGEST", "/plan_sha256", "canonical run-plan digest does not match the link summary"))
+    if summary["plan_seed"] != plan["seed"]:
+        out.append(issue("TB_GRAPH_PLAN_SEED", "/plan_seed", "link-summary seed differs from the resolved run plan"))
+    control_index_digest = canonical_digest(local_control_index)
+    if summary["local_control_index_sha256"] != control_index_digest:
+        out.append(issue(
+            "TB_GRAPH_CONTROL_INDEX_DIGEST",
+            "/local_control_index_sha256",
+            "canonical local-control-index digest does not match the link summary",
+        ))
+    if local_control_index["plan_sha256"] != plan_digest:
+        out.append(issue("TB_GRAPH_CONTROL_PLAN", "/local_control_index_sha256", "local-control index does not reference the resolved run plan"))
+    control_keys: set[tuple[str, str, int]] = set()
+    for entry_index, entry in enumerate(local_control_index["entries"]):
+        raw_control = local_controls_by_path.get(entry["relative_path"])
+        pointer = f"/local_control_index_sha256/entries/{entry_index}"
+        if raw_control is None:
+            out.append(issue("TB_GRAPH_CONTROL_RESOLUTION", pointer, "local-control index path did not resolve"))
+            continue
+        raw_issues = validate_instance(raw_control, "qw5.tb5-local-control/v1")
+        out.extend(raw_issues)
+        if any(item.code.startswith("SCHEMA_") for item in raw_issues):
+            continue
+        raw_digest = canonical_digest(raw_control)
+        if raw_digest != entry["sha256"]:
+            out.append(issue("TB_GRAPH_CONTROL_DIGEST", pointer + "/sha256", "local-control canonical digest differs from its index entry"))
+        if raw_control["plan_sha256"] != plan_digest:
+            out.append(issue("TB_GRAPH_CONTROL_PLAN", pointer, "local control does not reference the resolved run plan"))
+        expected_key = (entry["control_id"], entry["node"], entry["payload_bytes"])
+        actual_key = (raw_control["control_id"], raw_control["node"], raw_control["payload_bytes"])
+        if actual_key != expected_key:
+            out.append(issue("TB_GRAPH_CONTROL_IDENTITY", pointer, "local-control identity differs from its index entry"))
+        control_keys.add(actual_key)
+    if set(local_controls_by_path) != {row["relative_path"] for row in local_control_index["entries"]}:
+        out.append(issue("TB_GRAPH_CONTROL_COVERAGE", "/local_control_index_sha256", "control resolver and index path sets differ"))
+    if len(local_control_index["entries"]) == 108 and control_keys != expected_local_control_keys():
+        out.append(issue("TB_GRAPH_CONTROL_COVERAGE", "/local_control_index_sha256", "resolved controls do not cover the exact 108-cell matrix"))
     if canonical_digest(measurement_index) != summary["measurement_index_sha256"]:
         out.append(issue("TB_SUMMARY_INDEX_DIGEST", "/measurement_index_sha256", "canonical index digest does not match the summary"))
-    if measurement_index["plan_sha256"] != summary["plan_sha256"] or measurement_index["plan_seed"] != summary["plan_seed"]:
+    if (
+        measurement_index["plan_sha256"] != plan_digest
+        or measurement_index["local_control_index_sha256"] != control_index_digest
+        or measurement_index["plan_seed"] != plan["seed"]
+    ):
         out.append(issue("TB_SUMMARY_INDEX_PLAN", "/measurement_index_sha256", "index plan identity differs from summary"))
     by_cell = {row["cell_id"]: row for row in measurement_index["entries"]}
     if len(by_cell) != len(measurement_index["entries"]) or set(by_cell) != {row["cell_id"] for row in summary["cells"]}:
         out.append(issue("TB_SUMMARY_INDEX_COVERAGE", "/measurement_index_sha256", "index must resolve every summary cell exactly once"))
         return out
+    indexed_measurement_paths = {row["relative_path"] for row in measurement_index["entries"]}
+    if set(raw_by_path) != indexed_measurement_paths:
+        out.append(issue("TB_SUMMARY_INDEX_COVERAGE", "/measurement_index_sha256", "measurement resolver and index path sets differ"))
     for cell_index, cell in enumerate(summary["cells"]):
         base = f"/cells/{cell_index}"
         entry = by_cell[cell["cell_id"]]
@@ -1331,9 +1844,24 @@ def validate_tb5_evidence_bundle(
         if raw is None:
             out.append(issue("TB_SUMMARY_MEASUREMENT_RESOLUTION", base + "/measurement_sha256", "index path did not resolve"))
             continue
+        raw_issues = validate_instance(raw, "qw5.tb5-measurement/v1")
+        out.extend(raw_issues)
+        if any(item.code.startswith("SCHEMA_") for item in raw_issues):
+            continue
         digest = canonical_digest(raw)
         if digest != entry["sha256"] or digest != cell["measurement_sha256"]:
             out.append(issue("TB_SUMMARY_MEASUREMENT_DIGEST", base + "/measurement_sha256", "raw canonical digest, index digest, and cell digest differ"))
+        expected_identity = {
+            "qw5_commit": plan["identity"]["qw5_commit"],
+            "dirty": plan["identity"]["dirty"],
+            "plan_sha256": plan_digest,
+            "harness_sha256": plan["identity"]["harness_sha256"],
+            "route_proof_sha256": plan["identity"]["route_proof_sha256"],
+            "inventory_sha256": plan["identity"]["inventory_sha256"],
+            "local_control_index_sha256": control_index_digest,
+        }
+        if raw["identity"] != expected_identity or raw["plan_seed"] != plan["seed"]:
+            out.append(issue("TB_GRAPH_MEASUREMENT_IDENTITY", base, "raw measurement does not bind the resolved plan and local-control index"))
         projected_flows = [
             {
                 "flow_id": row["flow_id"],
@@ -1352,7 +1880,7 @@ def validate_tb5_evidence_bundle(
             "measurement_sha256": digest,
             "flow_summaries": projected_flows,
             "aggregate_throughput": raw["summary"]["aggregate_throughput"],
-            "thermal_regimes": raw["summary"]["thermal_regimes"],
+            "regime_identities": raw["summary"]["regime_identities"],
             "exclusions": raw["exclusions"],
             "errors": raw["errors"],
         }
@@ -1380,8 +1908,10 @@ def validate_tb5_evidence_bundle(
 SEMANTIC_VALIDATORS: dict[str, Callable[[dict[str, Any]], list[Issue]]] = {
     "qw5.hardware-inventory/v1": semantic_hardware,
     "qw5.memory-baseline/v1": semantic_memory,
+    "qw5.model-acquisition-plan/v1": semantic_model_acquisition_plan,
     "qw5.model-artifact-manifest/v1": semantic_model,
     "qw5.placement-analysis/v1": semantic_placement,
+    "qw5.placement-evidence-graph/v1": semantic_placement_evidence_graph,
     "qw5.safetensors-parser-profile/v1": semantic_noop,
     "qw5.tb5-link-summary/v1": semantic_link_summary,
     "qw5.tb5-local-control-index/v1": semantic_local_control_index,
@@ -1568,7 +2098,7 @@ def safetensors_duplicate_guard(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
-def parse_safetensors_v1(raw: bytes) -> list[dict[str, Any]]:
+def parse_safetensors_v1(raw: bytes) -> dict[str, Any]:
     if len(raw) < 8:
         raise JsonInputError("SAFETENSORS_HEADER_LENGTH", "missing little-endian u64 header length")
     header_length = struct.unpack("<Q", raw[:8])[0]
@@ -1599,6 +2129,12 @@ def parse_safetensors_v1(raw: bytes) -> list[dict[str, Any]]:
         raise JsonInputError("SAFETENSORS_JSON", str(exc)) from exc
     if not isinstance(header, dict):
         raise JsonInputError("SAFETENSORS_HEADER_OBJECT", "header must be an object")
+    metadata = header.get("__metadata__", {})
+    if not isinstance(metadata, dict) or any(
+        not isinstance(key, str) or not isinstance(value, str)
+        for key, value in metadata.items()
+    ):
+        raise JsonInputError("SAFETENSORS_METADATA", "__metadata__ must be a string-to-string map")
     tensor_items = [(name, row) for name, row in header.items() if name != "__metadata__"]
     if len(tensor_items) > 1_000_000:
         raise JsonInputError("SAFETENSORS_TENSOR_LIMIT", "tensor count exceeds the QW5 v1 limit")
@@ -1644,7 +2180,7 @@ def parse_safetensors_v1(raw: bytes) -> list[dict[str, Any]]:
         cursor = end
     if cursor != len(data):
         raise JsonInputError("SAFETENSORS_RANGE_COVERAGE", "tensor ranges do not cover the data buffer")
-    return tensors
+    return {"metadata": metadata, "tensors": tensors}
 
 
 def verify_safetensors_vectors() -> int:
@@ -1657,13 +2193,13 @@ def verify_safetensors_vectors() -> int:
     for row in vectors["valid_vectors"]:
         raw = bytes.fromhex(row["source_hex"])
         try:
-            tensors = parse_safetensors_v1(raw)
+            projection = parse_safetensors_v1(raw)
         except JsonInputError as exc:
             print(f"FAIL SafeTensors vector {row['vector_id']}: {exc.code} {exc}")
             failures += 1
             continue
-        if hashlib.sha256(raw).hexdigest() != row["sha256"] or tensors != row["tensors"]:
-            print(f"FAIL SafeTensors vector {row['vector_id']}: digest or tensor projection mismatch")
+        if hashlib.sha256(raw).hexdigest() != row["sha256"] or projection != row["projection"]:
+            print(f"FAIL SafeTensors vector {row['vector_id']}: digest, metadata, or tensor projection mismatch")
             failures += 1
     for row in vectors["invalid_sources"]:
         try:
@@ -1678,7 +2214,14 @@ def verify_safetensors_vectors() -> int:
     return failures
 
 
-def generated_aborted_measurement(cell_id: str, schedule_index: int, seed: int) -> dict[str, Any]:
+def generated_aborted_measurement(
+    cell_id: str,
+    schedule_index: int,
+    plan: dict[str, Any],
+    plan_digest: str,
+    local_control_index_digest: str,
+) -> dict[str, Any]:
+    seed = plan["seed"]
     mode_label, scenario_id, payload_text = cell_id.split(":")
     mode = "round_trip" if mode_label == "round-trip" else "stream"
     payload = int(payload_text)
@@ -1758,14 +2301,17 @@ def generated_aborted_measurement(cell_id: str, schedule_index: int, seed: int) 
         "created_at": "2000-01-01T00:00:00Z",
         "producer": {
             "name": "qw5-generated-schema-fixture", "version": "1",
-            "executable_sha256": "41" * 32, "qw5_commit": "41" * 20,
+            "executable_sha256": "41" * 32, "qw5_commit": plan["identity"]["qw5_commit"],
             "dirty": False, "parameters": ["--generated-bundle"],
         },
         "identity": {
-            "qw5_commit": "41" * 20, "dirty": False, "plan_sha256": "43" * 32,
-            "harness_sha256": "41" * 32, "route_proof_sha256": "42" * 32,
-            "inventory_sha256": {"A": "44" * 32, "B": "45" * 32, "C": "46" * 32},
-            "local_control_index_sha256": "45" * 32,
+            "qw5_commit": plan["identity"]["qw5_commit"],
+            "dirty": plan["identity"]["dirty"],
+            "plan_sha256": plan_digest,
+            "harness_sha256": plan["identity"]["harness_sha256"],
+            "route_proof_sha256": plan["identity"]["route_proof_sha256"],
+            "inventory_sha256": plan["identity"]["inventory_sha256"],
+            "local_control_index_sha256": local_control_index_digest,
         },
         "plan_seed": seed, "schedule_index": schedule_index,
         "scenario": {
@@ -1802,19 +2348,19 @@ def generated_aborted_measurement(cell_id: str, schedule_index: int, seed: int) 
                 {
                     "flow_id": flow_id, "valid_attempts": 0, "invalid_attempts": 0,
                     "throughput": empty_throughput, "round_trip_latency": empty_latency,
-                    "thermal_regimes": [],
                 }
                 for flow_id in flow_ids
             ],
-            "aggregate_throughput": empty_throughput, "thermal_regimes": [],
+            "aggregate_throughput": empty_throughput, "regime_identities": [],
         },
         "exclusions": [{"attempt_id": "warmup-001", "reason": "GENERATED_ABORT", "included_in_failure_rate": True}],
         "errors": [error],
     }
 
 
-def verify_generated_local_control_bundle() -> int:
-    failures = 0
+def generated_local_control_bundle(
+    plan_digest: str,
+) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
     raw_by_path: dict[str, dict[str, Any]] = {}
     entries = []
     timing_scopes = {
@@ -1830,12 +2376,23 @@ def verify_generated_local_control_bundle() -> int:
                 "executable_sha256": "47" * 32, "qw5_commit": "47" * 20,
                 "dirty": False, "parameters": ["--generated-control-bundle"],
             },
-            "plan_sha256": "43" * 32, "control_id": control, "node": node,
+            "plan_sha256": plan_digest, "control_id": control, "node": node,
             "payload_bytes": payload, "status": "COMPLETE",
             "buffer_policy": {
                 "preallocated_input_buffers": 1, "preallocated_output_buffers": 1,
                 "peak_application_buffer_bytes": 2 * payload,
                 "timing_scope": timing_scopes[control],
+            },
+            "regime": {
+                "node": node,
+                "observation_start_monotonic_ns": 1,
+                "observation_end_monotonic_ns": 2,
+                "start_thermal_state": "nominal",
+                "end_thermal_state": "nominal",
+                "start_low_power_mode": False,
+                "end_low_power_mode": False,
+                "start_power_source": "ac",
+                "end_power_source": "ac",
             },
             "warmup_elapsed_ns": [3, 2, 1],
             "recorded_elapsed_ns": list(range(1, 11)), "errors": [],
@@ -1855,9 +2412,17 @@ def verify_generated_local_control_bundle() -> int:
             "executable_sha256": "48" * 32, "qw5_commit": "48" * 20,
             "dirty": False, "parameters": ["--generated-control-bundle"],
         },
-        "plan_sha256": "43" * 32, "canonical_profile": "qw5-canonical-json-v1",
+        "plan_sha256": plan_digest, "canonical_profile": "qw5-json-c14n-v1",
         "entries": entries,
     }
+    return index, raw_by_path
+
+
+def verify_generated_local_control_bundle() -> int:
+    failures = 0
+    plan = load_json(FIXTURE_DIR / "tb5-run-plan.valid.json")
+    index, raw_by_path = generated_local_control_bundle(canonical_digest(plan))
+    entries = index["entries"]
     issues = validate_instance(index, "qw5.tb5-local-control-index/v1")
     for raw in raw_by_path.values():
         issues.extend(validate_instance(raw, "qw5.tb5-local-control/v1"))
@@ -1894,7 +2459,11 @@ def verify_generated_link_summary() -> int:
     failures = 0
     null_throughput = expected_metric([], "bytes_per_second")
     null_latency = expected_metric([], "ns")
-    seed = 42
+    plan = load_json(FIXTURE_DIR / "tb5-run-plan.valid.json")
+    plan_digest = canonical_digest(plan)
+    local_control_index, local_controls_by_path = generated_local_control_bundle(plan_digest)
+    local_control_index_digest = canonical_digest(local_control_index)
+    seed = plan["seed"]
     ordered_cells = scheduled_cell_ids(seed)
     cells = []
     raw_by_path: dict[str, dict[str, Any]] = {}
@@ -1902,7 +2471,13 @@ def verify_generated_link_summary() -> int:
     for index, cell_id in enumerate(ordered_cells):
         mode, scenario_id, payload = cell_id.split(":")
         mode_name = "round_trip" if mode == "round-trip" else "stream"
-        raw = generated_aborted_measurement(cell_id, index, seed)
+        raw = generated_aborted_measurement(
+            cell_id,
+            index,
+            plan,
+            plan_digest,
+            local_control_index_digest,
+        )
         relative_path = f"measurements/{index:03d}.json"
         digest = canonical_digest(raw)
         raw_by_path[relative_path] = raw
@@ -1920,7 +2495,7 @@ def verify_generated_link_summary() -> int:
                 for flow_id in SCENARIOS[scenario_id]
             ],
             "aggregate_throughput": null_throughput,
-            "thermal_regimes": [],
+            "regime_identities": [],
             "exclusions": raw["exclusions"],
             "errors": raw["errors"],
         })
@@ -1934,9 +2509,10 @@ def verify_generated_link_summary() -> int:
             "executable_sha256": "42" * 32, "qw5_commit": "42" * 20,
             "dirty": False, "parameters": ["--generated-bundle"],
         },
-        "plan_sha256": "43" * 32,
+        "plan_sha256": plan_digest,
+        "local_control_index_sha256": local_control_index_digest,
         "plan_seed": seed,
-        "canonical_profile": "qw5-canonical-json-v1",
+        "canonical_profile": "qw5-json-c14n-v1",
         "entries": index_entries,
     }
     data = {
@@ -1948,10 +2524,10 @@ def verify_generated_link_summary() -> int:
             "name": "qw5-generated-schema-fixture", "version": "1",
             "executable_sha256": "41" * 32, "qw5_commit": "41" * 20, "dirty": False,
         },
-        "plan_sha256": "43" * 32,
+        "plan_sha256": plan_digest,
         "plan_seed": seed,
         "measurement_index_sha256": canonical_digest(measurement_index),
-        "local_controls_sha256": "45" * 32,
+        "local_control_index_sha256": local_control_index_digest,
         "coverage": {
             "planned_cells": 246, "complete_cells": 0, "failed_cells": 0,
             "aborted_cells": 246, "undetermined_cells": 0,
@@ -1959,11 +2535,22 @@ def verify_generated_link_summary() -> int:
         "cells": cells,
         "prohibited_claims": ["Generated schema fixture; not link evidence."],
     }
-    issues = validate_instance(data, "qw5.tb5-link-summary/v1")
+    issues = validate_instance(plan, "qw5.tb5-run-plan/v1")
+    issues.extend(validate_instance(local_control_index, "qw5.tb5-local-control-index/v1"))
+    for raw_control in local_controls_by_path.values():
+        issues.extend(validate_instance(raw_control, "qw5.tb5-local-control/v1"))
+    issues.extend(validate_instance(data, "qw5.tb5-link-summary/v1"))
     issues.extend(validate_instance(measurement_index, "qw5.tb5-measurement-index/v1"))
     for raw in raw_by_path.values():
         issues.extend(validate_instance(raw, "qw5.tb5-measurement/v1"))
-    issues.extend(validate_tb5_evidence_bundle(data, measurement_index, raw_by_path))
+    issues.extend(validate_tb5_evidence_bundle(
+        data,
+        plan,
+        local_control_index,
+        local_controls_by_path,
+        measurement_index,
+        raw_by_path,
+    ))
     if issues:
         for item in issues:
             print(f"FAIL generated link summary: {item.code} {item.pointer}: {item.message}")
@@ -1995,10 +2582,36 @@ def verify_generated_link_summary() -> int:
         failures += 1
     raw_disagreement = copy.deepcopy(raw_by_path)
     first_path = measurement_index["entries"][0]["relative_path"]
-    raw_disagreement[first_path]["payload_bytes"] += 1
-    codes = {item.code for item in validate_tb5_evidence_bundle(data, measurement_index, raw_disagreement)}
+    raw_disagreement[first_path]["errors"][0]["message"] += " changed"
+    codes = {item.code for item in validate_tb5_evidence_bundle(
+        data,
+        plan,
+        local_control_index,
+        local_controls_by_path,
+        measurement_index,
+        raw_disagreement,
+    )}
     if "TB_SUMMARY_RAW_RECONCILIATION" not in codes or "TB_SUMMARY_MEASUREMENT_DIGEST" not in codes:
         print(f"FAIL generated link summary negative raw-disagreement: got {sorted(codes)}")
+        failures += 1
+    cyclic_plan = copy.deepcopy(plan)
+    cyclic_plan["identity"]["local_control_index_sha256"] = local_control_index_digest
+    codes = {item.code for item in validate_instance(cyclic_plan, "qw5.tb5-run-plan/v1")}
+    if not any(code.startswith("SCHEMA_") for code in codes):
+        print(f"FAIL generated link summary negative cyclic-plan-reference: got {sorted(codes)}")
+        failures += 1
+    wrong_control_index = copy.deepcopy(local_control_index)
+    wrong_control_index["plan_sha256"] = "00" * 32
+    codes = {item.code for item in validate_tb5_evidence_bundle(
+        data,
+        plan,
+        wrong_control_index,
+        local_controls_by_path,
+        measurement_index,
+        raw_by_path,
+    )}
+    if "TB_GRAPH_CONTROL_PLAN" not in codes or "TB_GRAPH_CONTROL_INDEX_DIGEST" not in codes:
+        print(f"FAIL generated link summary negative control-plan-disagreement: got {sorted(codes)}")
         failures += 1
     if failures:
         return failures
@@ -2036,6 +2649,71 @@ def verify_negative_cases() -> int:
             detail = ", ".join(sorted(codes)) or "accepted"
             print(f"FAIL negative case {row['case_id']}: expected {expected}; got {detail}")
             failures += 1
+    return failures
+
+
+def verify_model_evidence_bundle() -> int:
+    failures = 0
+    plan = load_json(FIXTURE_DIR / "model-acquisition-plan.valid.json")
+    manifest = load_json(FIXTURE_DIR / "model-artifact-manifest.valid.json")
+    issues = validate_model_evidence_bundle(plan, manifest)
+    if issues:
+        print(f"FAIL model evidence bundle: {[(item.code, item.pointer) for item in issues]}")
+        failures += len(issues)
+    wrong_digest = copy.deepcopy(manifest)
+    wrong_digest["selection"]["acquisition_plan_sha256"] = "00" * 32
+    codes = {item.code for item in validate_model_evidence_bundle(plan, wrong_digest)}
+    if "MODEL_PLAN_DIGEST" not in codes:
+        print(f"FAIL model evidence negative plan-digest: got {sorted(codes)}")
+        failures += 1
+    config_only = copy.deepcopy(manifest)
+    config_only["selection"]["components"] = ["configuration"]
+    config_only["selection"]["expected_paths"] = ["config.json"]
+    config_only["files"] = [row for row in config_only["files"] if row["path"] == "config.json"]
+    config_only["completeness"].update({"verified_file_count": 1, "verified_total_bytes": 2})
+    codes = {item.code for item in validate_instance(config_only, "qw5.model-artifact-manifest/v1")}
+    if "MODEL_ROLE_COMPONENTS" not in codes or "MODEL_ROLE_COVERAGE" not in codes:
+        print(f"FAIL model evidence negative config-only-complete: got {sorted(codes)}")
+        failures += 1
+    return failures
+
+
+def verify_placement_evidence_contract() -> int:
+    failures = 0
+    analysis = load_json(FIXTURE_DIR / "placement-analysis.valid.json")
+    graph = load_json(FIXTURE_DIR / "placement-evidence-graph.valid.json")
+    if analysis["evidence_graph_sha256"] != canonical_digest(graph):
+        print("FAIL placement evidence graph: analysis digest does not match graph")
+        failures += 1
+    hostile = copy.deepcopy(analysis)
+    hostile["decision"]["outcome"] = "GO"
+    hostile["decision"]["passed_gates"] = list(hostile["decision"]["applicable_gates"])
+    hostile["decision"]["unresolved_gates"] = []
+    hostile["decision"]["next_permitted_task"] = "m2-fake"
+    for evaluation in hostile["decision"]["gate_evaluations"]:
+        if evaluation["gate_id"] in {"quality_available", "scratch_bounded", "state_bounded"}:
+            evaluation["disposition"] = "passed"
+            evaluation["evidence_node_ids"] = ["gate-rule-set"]
+    codes = {item.code for item in validate_instance(hostile, "qw5.placement-analysis/v1")}
+    expected = {
+        "PLACEMENT_MEMORY_CLASS_COVERAGE",
+        "PLACEMENT_QUALITY_EVIDENCE",
+        "PLACEMENT_GO_REQUIRES_RESOLVED_GRAPH",
+    }
+    if not expected.issubset(codes):
+        print(f"FAIL placement evidence negative producer-asserted-go: expected {sorted(expected)}; got {sorted(codes)}")
+        failures += 1
+    bundle_codes = {item.code for item in validate_placement_evidence_bundle(hostile, graph, {})}
+    bundle_expected = {"PLACEMENT_GO_UNRESOLVED_GRAPH", "PLACEMENT_GO_UNRESOLVED_RULE"}
+    if not bundle_expected.issubset(bundle_codes):
+        print(f"FAIL placement evidence negative unresolved-go: expected {sorted(bundle_expected)}; got {sorted(bundle_codes)}")
+        failures += 1
+    wrong_graph = copy.deepcopy(analysis)
+    wrong_graph["evidence_graph_sha256"] = "00" * 32
+    codes = {item.code for item in validate_placement_evidence_bundle(wrong_graph, graph, {})}
+    if "PLACEMENT_GRAPH_DIGEST" not in codes:
+        print(f"FAIL placement evidence negative graph-digest: got {sorted(codes)}")
+        failures += 1
     return failures
 
 
@@ -2153,6 +2831,8 @@ def main() -> int:
     failures += verify_canonical_vectors()
     failures += verify_wire_vectors()
     failures += verify_safetensors_vectors()
+    failures += verify_model_evidence_bundle()
+    failures += verify_placement_evidence_contract()
     failures += verify_tb5_evidence_vectors()
     failures += verify_generated_local_control_bundle()
     failures += verify_generated_link_summary()
@@ -2162,7 +2842,12 @@ def main() -> int:
         return 1
     valid_count = len(list(FIXTURE_DIR.glob("*.valid.json")))
     negative_count = len(load_json(FIXTURE_DIR / "negative-cases.json")["cases"])
-    print(f"validated {len(schemas)} schemas, {valid_count} committed positive fixtures, one generated 108-control bundle, one generated 246-cell evidence bundle, {negative_count} negative cases, and exact canonical/wire/TB5/SafeTensors vectors")
+    print(
+        f"validated {len(schemas)} schemas, {valid_count} committed positive fixtures, "
+        "one generated acyclic 108-control/246-cell evidence graph, model and placement "
+        f"bundle invariants, {negative_count} negative cases, and exact canonical/wire/"
+        "TB5/SafeTensors vectors"
+    )
     return 0
 
 

@@ -29,9 +29,10 @@
     "selection": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["model_role", "components", "revision_listing_sha256", "expected_paths"],
+      "required": ["model_role", "acquisition_plan_sha256", "components", "revision_listing_sha256", "expected_paths"],
       "properties": {
         "model_role": { "enum": ["first_working_target", "flagship_target", "schema_fixture"] },
+        "acquisition_plan_sha256": { "$ref": "#/$defs/sha256" },
         "components": {
           "type": "array",
           "minItems": 1,
@@ -155,7 +156,7 @@
     "file": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["path", "role", "status", "media_type", "upstream_object_id", "verification_passes"],
+      "required": ["path", "role", "components", "status", "media_type", "upstream_object_id", "verification_passes"],
       "properties": {
         "path": { "$ref": "#/$defs/relative_path" },
         "role": {
@@ -164,6 +165,10 @@
             "prompt_template", "special_tokens", "tokenizer", "tokenizer_configuration",
             "weight_index", "weight_shard", "other"
           ]
+        },
+        "components": {
+          "type": "array", "minItems": 1, "uniqueItems": true,
+          "items": { "enum": ["configuration", "language", "license", "tokenizer", "vision"] }
         },
         "status": { "enum": ["verified", "missing", "error"] },
         "size_bytes": { "type": "integer", "minimum": 0 },

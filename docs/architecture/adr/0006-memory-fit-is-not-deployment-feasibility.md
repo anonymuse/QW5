@@ -60,6 +60,15 @@ formula rounding, layout exceptions, safety reserve, solver objective, candidate
 placements, and the Qwen3.5 text-path exclusion proof. Terra implements only the
 accepted contracts and tests.
 
+Placement decisions are consumed through a canonical evidence graph, not trusted as
+producer assertions. The graph resolves every input, gate-evidence, and allocation-
+evidence path to canonical bytes and semantic validation. A standalone placement
+artifact cannot establish `GO`; the resolver must also prove exhaustive memory-class
+coverage, every applicable gate, every accepted lineage input, and every required
+quality or zero-byte proof. Any unresolved graph node forces the positive decision to
+fail closed. The graph is frozen before the analysis and contains only stable analysis
+identity fields, avoiding a graph/analysis digest cycle.
+
 ## Consequences
 
 - The existing **ESTIMATED** 99.25 GB two-bit language-parameter floor for

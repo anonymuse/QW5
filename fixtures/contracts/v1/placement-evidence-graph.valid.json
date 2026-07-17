@@ -1,0 +1,58 @@
+{
+  "schema": "qw5.placement-evidence-graph/v1",
+  "artifact_role": "schema_fixture",
+  "evidence_class": "ESTIMATED",
+  "created_at": "2000-01-01T00:00:00Z",
+  "producer": {
+    "name": "qw5-schema-fixture",
+    "version": "1",
+    "executable_sha256": "edededededededededededededededededededededededededededededededed",
+    "qw5_commit": "edededededededededededededededededededed",
+    "dirty": false,
+    "parameters": ["--fixture"]
+  },
+  "analysis_identity": {
+    "repository_id": "example/schema-fixture",
+    "immutable_revision": "ffffffffffffffffffffffffffffffffffffffff",
+    "component_scope": "schema_fixture",
+    "phase": "decode",
+    "context_tokens": 4096,
+    "candidate_id": "fixture-layout"
+  },
+  "nodes": [
+    {"node_id": "model-manifest", "role": "model_manifest", "schema": "qw5.model-artifact-manifest/v1", "evidence_class": "SIMULATED", "acceptance_status": "accepted", "relative_path": "evidence/model-manifest.json", "sha256": "0101010101010101010101010101010101010101010101010101010101010101"},
+    {"node_id": "tensor-inventory", "role": "tensor_inventory", "schema": "qw5.tensor-inventory/v1", "evidence_class": "SIMULATED", "acceptance_status": "accepted", "relative_path": "evidence/tensor-inventory.json", "sha256": "0202020202020202020202020202020202020202020202020202020202020202"},
+    {"node_id": "hardware-a", "role": "hardware_inventory_a", "schema": "qw5.hardware-inventory/v1", "evidence_class": "SIMULATED", "acceptance_status": "accepted", "relative_path": "evidence/hardware-a.json", "sha256": "0303030303030303030303030303030303030303030303030303030303030303"},
+    {"node_id": "hardware-b", "role": "hardware_inventory_b", "schema": "qw5.hardware-inventory/v1", "evidence_class": "SIMULATED", "acceptance_status": "accepted", "relative_path": "evidence/hardware-b.json", "sha256": "0404040404040404040404040404040404040404040404040404040404040404"},
+    {"node_id": "hardware-c", "role": "hardware_inventory_c", "schema": "qw5.hardware-inventory/v1", "evidence_class": "SIMULATED", "acceptance_status": "accepted", "relative_path": "evidence/hardware-c.json", "sha256": "0505050505050505050505050505050505050505050505050505050505050505"},
+    {"node_id": "formula-set", "role": "formula_set", "schema": "qw5.formula-set/v1", "evidence_class": "TARGET", "acceptance_status": "accepted", "relative_path": "evidence/formula-set.json", "sha256": "0606060606060606060606060606060606060606060606060606060606060606"},
+    {"node_id": "quantization-layout", "role": "quantization_layout", "schema": "qw5.quantization-layout/v1", "evidence_class": "TARGET", "acceptance_status": "accepted", "relative_path": "evidence/quantization-layout.json", "sha256": "0707070707070707070707070707070707070707070707070707070707070707"},
+    {"node_id": "baseline-a", "role": "memory_baseline_a", "schema": "qw5.memory-baseline/v1", "evidence_class": "SIMULATED", "acceptance_status": "accepted", "relative_path": "evidence/baseline-a.json", "sha256": "1111111111111111111111111111111111111111111111111111111111111111"},
+    {"node_id": "baseline-b", "role": "memory_baseline_b", "schema": "qw5.memory-baseline/v1", "evidence_class": "SIMULATED", "acceptance_status": "accepted", "relative_path": "evidence/baseline-b.json", "sha256": "1212121212121212121212121212121212121212121212121212121212121212"},
+    {"node_id": "baseline-c", "role": "memory_baseline_c", "schema": "qw5.memory-baseline/v1", "evidence_class": "SIMULATED", "acceptance_status": "accepted", "relative_path": "evidence/baseline-c.json", "sha256": "1313131313131313131313131313131313131313131313131313131313131313"},
+    {"node_id": "gate-rule-set", "role": "gate_rule_set", "schema": "qw5.placement-gate-rule-set/v1", "evidence_class": "TARGET", "acceptance_status": "accepted", "relative_path": "evidence/gate-rule-set.json", "sha256": "1414141414141414141414141414141414141414141414141414141414141414"},
+    {"node_id": "candidate-set", "role": "placement_candidate_set", "schema": "qw5.placement-candidate-set/v1", "evidence_class": "TARGET", "acceptance_status": "accepted", "relative_path": "evidence/candidate-set.json", "sha256": "1515151515151515151515151515151515151515151515151515151515151515"},
+    {"node_id": "solver-objective", "role": "solver_objective", "schema": "qw5.placement-solver-objective/v1", "evidence_class": "TARGET", "acceptance_status": "accepted", "relative_path": "evidence/solver-objective.json", "sha256": "1616161616161616161616161616161616161616161616161616161616161616"},
+    {"node_id": "reserve-policy", "role": "reserve_headroom_policy", "schema": "qw5.reserve-headroom-policy/v1", "evidence_class": "TARGET", "acceptance_status": "accepted", "relative_path": "evidence/reserve-policy.json", "sha256": "1717171717171717171717171717171717171717171717171717171717171717"}
+  ],
+  "gate_resolutions": [
+    {"gate_id": "artifact_complete", "disposition": "passed", "rule_id": "artifact-complete-v1", "evidence_node_ids": ["model-manifest"]},
+    {"gate_id": "tensor_reconciled", "disposition": "passed", "rule_id": "tensor-reconciled-v1", "evidence_node_ids": ["tensor-inventory"]},
+    {"gate_id": "layout_complete", "disposition": "passed", "rule_id": "layout-complete-v1", "evidence_node_ids": ["quantization-layout"]},
+    {"gate_id": "memory_baseline_accepted", "disposition": "passed", "rule_id": "memory-baseline-v1", "evidence_node_ids": ["baseline-a", "baseline-b", "baseline-c"]},
+    {"gate_id": "memory_nonnegative", "disposition": "passed", "rule_id": "memory-nonnegative-v1", "evidence_node_ids": ["reserve-policy"]},
+    {"gate_id": "quality_available", "disposition": "unresolved", "rule_id": "quality-available-v1", "evidence_node_ids": []},
+    {"gate_id": "scratch_bounded", "disposition": "unresolved", "rule_id": "scratch-bounded-v1", "evidence_node_ids": []},
+    {"gate_id": "state_bounded", "disposition": "unresolved", "rule_id": "state-bounded-v1", "evidence_node_ids": []},
+    {"gate_id": "transport_profile_available", "disposition": "not_applicable", "rule_id": null, "evidence_node_ids": []},
+    {"gate_id": "text_subset_proven", "disposition": "not_applicable", "rule_id": null, "evidence_node_ids": []}
+  ],
+  "allocation_resolutions": [
+    {"allocation_id": "fixture-weights", "memory_class": "weights", "formula_id": "fixture-weights-v1", "evidence_node_ids": ["tensor-inventory", "quantization-layout"], "zero_bytes_proof_node_id": null}
+  ],
+  "required_memory_classes": [
+    "allocator", "artifact_staging", "control", "fragmentation", "kv_state",
+    "quantization_metadata", "recurrent_state", "router_state", "scratch",
+    "transport", "weights"
+  ]
+}

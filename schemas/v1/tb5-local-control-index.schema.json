@@ -12,7 +12,7 @@
     "created_at": { "$ref": "#/$defs/timestamp" },
     "producer": { "$ref": "#/$defs/producer" },
     "plan_sha256": { "$ref": "#/$defs/sha256" },
-    "canonical_profile": { "const": "qw5-canonical-json-v1" },
+    "canonical_profile": { "const": "qw5-json-c14n-v1" },
     "entries": { "type": "array", "minItems": 1, "maxItems": 108, "uniqueItems": true, "items": { "$ref": "#/$defs/entry" } }
   },
   "allOf": [

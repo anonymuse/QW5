@@ -32,10 +32,11 @@ worker resolution. Every input and derived term is retained in a canonical raw
 `qw5.tb5-synchronization-evidence/v1` artifact and linked from the attempt by SHA-256.
 
 An attempt qualifies only when maximum pre-attempt control RTT is at most 1 ms and the
-coordinator-observed score is at most 10 ms. The score is not an estimate of actual
-start separation and cannot support cross-node subtraction or one-way latency.
-Malformed, unavailable, or error evidence invalidates the attempt. A simultaneous cell
-with no qualifying recorded evidence is `UNDETERMINED`.
+coordinator-observed score is at most 10 ms. The score may be used solely for empirical
+attempt-inclusion scoring. It is never an actual-start estimate, start-skew bound,
+clock proof, or one-way-delay claim and cannot support cross-node subtraction.
+Malformed, unavailable, or error evidence invalidates the attempt. A simultaneous
+cell with no qualifying recorded evidence is `UNDETERMINED`.
 
 ## Consequences
 

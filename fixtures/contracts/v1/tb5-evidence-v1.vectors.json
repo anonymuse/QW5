@@ -29,13 +29,13 @@
       "vector_id": "local-buffer-copy-positive",
       "fixture": "tb5-local-control.valid.json",
       "schema_id": "qw5.tb5-local-control/v1",
-      "canonical_sha256": "8ae517472ba69cfd6f3bde0e6fa75628fca5f449692ca2e362d0efcffbcf0145"
+      "canonical_sha256": "5627d7505874aeb8a25ea77ffcec32dbbf57d76c20dd0942639e30a7ce1204ce"
     },
     {
       "vector_id": "local-control-index-positive",
       "fixture": "tb5-local-control-index.valid.json",
       "schema_id": "qw5.tb5-local-control-index/v1",
-      "canonical_sha256": "3c7c0a23ff8532e81644dd9db40a882eecf35d10336846617ce792be5249ee96",
+      "canonical_sha256": "027c07177781eb3a88203fd30af0670c2182b2a5744e39c6cd0f050ae45dc1ed",
       "resolved_entries": [
         {"relative_path": "controls/A/buffer_copy/64.json", "fixture": "tb5-local-control.valid.json"}
       ]
@@ -44,7 +44,7 @@
       "vector_id": "measurement-index-positive",
       "fixture": "tb5-measurement-index.valid.json",
       "schema_id": "qw5.tb5-measurement-index/v1",
-      "canonical_sha256": "54409ec2d640c5b7ee2b034decdb27f2dd306f59e03d84a1424b73c16b8dff2d",
+      "canonical_sha256": "edabe31cacf06104657dbb6474d25da58850a3a54975cc3241b9c68d4966d469",
       "resolved_entries": [
         {"relative_path": "measurements/stream/solo-a-b/64.json", "fixture": "tb5-measurement.valid.json"}
       ]

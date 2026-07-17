@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "required": [
     "schema", "artifact_role", "evidence_class", "created_at", "producer",
-    "plan_sha256", "control_id", "node", "payload_bytes", "status", "buffer_policy",
+    "plan_sha256", "control_id", "node", "payload_bytes", "status", "buffer_policy", "regime",
     "warmup_elapsed_ns", "recorded_elapsed_ns", "errors"
   ],
   "properties": {
@@ -30,6 +30,7 @@
         "timing_scope": { "enum": ["copy_only", "frame_and_verify", "generate_and_sha256"] }
       }
     },
+    "regime": { "$ref": "#/$defs/regime" },
     "warmup_elapsed_ns": { "type": "array", "maxItems": 3, "items": { "type": "integer", "minimum": 1 } },
     "recorded_elapsed_ns": { "type": "array", "maxItems": 10, "items": { "type": "integer", "minimum": 1 } },
     "errors": { "type": "array", "items": { "$ref": "#/$defs/error" } }
@@ -74,6 +75,25 @@
       "properties": {
         "code": { "type": "string", "pattern": "^[A-Z0-9_]+$" },
         "message": { "type": "string", "minLength": 1 }
+      }
+    },
+    "regime": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "node", "observation_start_monotonic_ns", "observation_end_monotonic_ns",
+        "start_thermal_state", "end_thermal_state", "start_low_power_mode",
+        "end_low_power_mode", "start_power_source", "end_power_source"
+      ],
+      "properties": {
+        "node": { "enum": ["A", "B", "C"] },
+        "observation_start_monotonic_ns": { "type": "integer", "minimum": 0 },
+        "observation_end_monotonic_ns": { "type": "integer", "minimum": 0 },
+        "start_thermal_state": { "type": "string", "minLength": 1 },
+        "end_thermal_state": { "type": "string", "minLength": 1 },
+        "start_low_power_mode": { "type": "boolean" },
+        "end_low_power_mode": { "type": "boolean" },
+        "start_power_source": { "type": ["string", "null"] },
+        "end_power_source": { "type": ["string", "null"] }
       }
     }
   }

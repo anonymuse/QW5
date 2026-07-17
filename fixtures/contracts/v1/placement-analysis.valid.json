@@ -38,6 +38,7 @@
     "solver_objective": {"sha256": "1616161616161616161616161616161616161616161616161616161616161616", "schema": "qw5.placement-solver-objective/v1", "evidence_class": "TARGET", "acceptance_status": "accepted"},
     "reserve_headroom_policy": {"sha256": "1717171717171717171717171717171717171717171717171717171717171717", "schema": "qw5.reserve-headroom-policy/v1", "evidence_class": "TARGET", "acceptance_status": "accepted"}
   },
+  "evidence_graph_sha256": "f4f561b2bc865e756383d66dfcf32623cbc47acc1b46f1c37adc5a368226af7e",
   "workload": {
     "phase": "decode",
     "batch_size": 1,
@@ -106,7 +107,10 @@
       "bytes": 8,
       "evidence_class": "ESTIMATED",
       "tensor_set_id": "fixture-tensors",
-      "range": null
+      "range": null,
+      "formula_id": "fixture-weights-v1",
+      "evidence_node_ids": ["tensor-inventory", "quantization-layout"],
+      "zero_bytes_proof_node_id": null
     }
   ],
   "network_edges": [],
@@ -134,16 +138,16 @@
     ],
     "not_applicable_gates": ["transport_profile_available", "text_subset_proven"],
     "gate_evaluations": [
-      {"gate_id": "artifact_complete", "disposition": "passed", "reason": "Fixture manifest is complete.", "evidence_sha256": "0101010101010101010101010101010101010101010101010101010101010101"},
-      {"gate_id": "tensor_reconciled", "disposition": "passed", "reason": "Fixture tensor totals reconcile.", "evidence_sha256": "0202020202020202020202020202020202020202020202020202020202020202"},
-      {"gate_id": "layout_complete", "disposition": "passed", "reason": "Fixture layout is frozen.", "evidence_sha256": "0707070707070707070707070707070707070707070707070707070707070707"},
-      {"gate_id": "memory_baseline_accepted", "disposition": "passed", "reason": "Fixture baselines are accepted.", "evidence_sha256": "1111111111111111111111111111111111111111111111111111111111111111"},
-      {"gate_id": "memory_nonnegative", "disposition": "passed", "reason": "All fixture node headroom is nonnegative.", "evidence_sha256": "1717171717171717171717171717171717171717171717171717171717171717"},
-      {"gate_id": "quality_available", "disposition": "unresolved", "reason": "Fixture has no quality evidence.", "evidence_sha256": null},
-      {"gate_id": "scratch_bounded", "disposition": "unresolved", "reason": "Fixture scratch is not bounded.", "evidence_sha256": null},
-      {"gate_id": "state_bounded", "disposition": "unresolved", "reason": "Fixture state is not bounded.", "evidence_sha256": null},
-      {"gate_id": "transport_profile_available", "disposition": "not_applicable", "reason": "Fixture candidate has no cross-node traffic.", "evidence_sha256": null},
-      {"gate_id": "text_subset_proven", "disposition": "not_applicable", "reason": "Fixture is not a text-only subset claim.", "evidence_sha256": null}
+      {"gate_id": "artifact_complete", "disposition": "passed", "reason": "Fixture manifest is complete.", "rule_id": "artifact-complete-v1", "evidence_node_ids": ["model-manifest"]},
+      {"gate_id": "tensor_reconciled", "disposition": "passed", "reason": "Fixture tensor totals reconcile.", "rule_id": "tensor-reconciled-v1", "evidence_node_ids": ["tensor-inventory"]},
+      {"gate_id": "layout_complete", "disposition": "passed", "reason": "Fixture layout is frozen.", "rule_id": "layout-complete-v1", "evidence_node_ids": ["quantization-layout"]},
+      {"gate_id": "memory_baseline_accepted", "disposition": "passed", "reason": "Fixture baselines are accepted.", "rule_id": "memory-baseline-v1", "evidence_node_ids": ["baseline-a", "baseline-b", "baseline-c"]},
+      {"gate_id": "memory_nonnegative", "disposition": "passed", "reason": "All fixture node headroom is nonnegative.", "rule_id": "memory-nonnegative-v1", "evidence_node_ids": ["reserve-policy"]},
+      {"gate_id": "quality_available", "disposition": "unresolved", "reason": "Fixture has no quality evidence.", "rule_id": "quality-available-v1", "evidence_node_ids": []},
+      {"gate_id": "scratch_bounded", "disposition": "unresolved", "reason": "Fixture scratch is not bounded.", "rule_id": "scratch-bounded-v1", "evidence_node_ids": []},
+      {"gate_id": "state_bounded", "disposition": "unresolved", "reason": "Fixture state is not bounded.", "rule_id": "state-bounded-v1", "evidence_node_ids": []},
+      {"gate_id": "transport_profile_available", "disposition": "not_applicable", "reason": "Fixture candidate has no cross-node traffic.", "rule_id": null, "evidence_node_ids": []},
+      {"gate_id": "text_subset_proven", "disposition": "not_applicable", "reason": "Fixture is not a text-only subset claim.", "rule_id": null, "evidence_node_ids": []}
     ],
     "next_permitted_task": null,
     "prohibited_claims": ["This synthetic fixture does not show that any model runs."]

@@ -21,14 +21,13 @@
     "identity": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["qw5_commit", "dirty", "harness_sha256", "route_proof_sha256", "inventory_sha256", "local_control_index_sha256"],
+      "required": ["qw5_commit", "dirty", "harness_sha256", "route_proof_sha256", "inventory_sha256"],
       "properties": {
         "qw5_commit": { "$ref": "#/$defs/git_commit" },
         "dirty": { "type": "boolean" },
         "harness_sha256": { "$ref": "#/$defs/sha256" },
         "route_proof_sha256": { "$ref": "#/$defs/sha256" },
-        "inventory_sha256": { "$ref": "#/$defs/node_digests" },
-        "local_control_index_sha256": { "$ref": "#/$defs/sha256" }
+        "inventory_sha256": { "$ref": "#/$defs/node_digests" }
       }
     },
     "seed": { "type": "integer", "minimum": 0, "maximum": 18446744073709551615 },
@@ -181,12 +180,13 @@
     "thermal_policy": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["required_state", "precondition_duration_ns", "recovery_duration_ns", "maximum_pause_ns"],
+      "required": ["required_state", "precondition_duration_ns", "recovery_duration_ns", "maximum_pause_ns", "regime_partition_policy"],
       "properties": {
         "required_state": { "const": "nominal" },
         "precondition_duration_ns": { "const": 300000000000 },
         "recovery_duration_ns": { "const": 300000000000 },
-        "maximum_pause_ns": { "const": 900000000000 }
+        "maximum_pause_ns": { "const": 900000000000 },
+        "regime_partition_policy": { "const": "exact_node_thermal_low_power_power_source_no_pooling" }
       }
     }
   },

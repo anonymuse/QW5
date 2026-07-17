@@ -91,9 +91,10 @@ is not executed in PR #3 and no kickoff prompt is part of this PR.
   control/index, synchronization-evidence, measurement/index, and link-summary
   schemas; exact wire/canonical/TB5 vectors; public Network framework route procedure;
   scenario maps, payloads, counts, keyed order, empirical 1 ms/10 ms inclusion
-  thresholds, deterministic stream stop/caps/final-frame rule, generation and
-  verification timing, application buffers, sockets, copies, errors, and thermal
-  state machine.
+  thresholds and their no-clock/no-start-bound semantics; acyclic plan/control-index/
+  measurement-index/summary identity graph; deterministic stream stop/caps/final-
+  frame rule, generation and verification timing, application buffers, sockets,
+  copies, errors, and exact thermal/Low Power Mode/power-source regime state machine.
 - **Dependencies and merge order:** After 02; before all physical captures.
 - **Permissions or physical access:** Local loopback/injected sockets only; no remote
   nodes, route changes, or Thunderbolt claims.
@@ -103,8 +104,9 @@ is not executed in PR #3 and no kickoff prompt is part of this PR.
   regression, byte/checksum/copy/count mismatch, malformed or insufficient empirical
   evidence, unsupported timing claim, unretained retry, cap-shortened sample, partial
   final frame, cross-clock latency, private address, dirty physical identity,
-  incomplete indexes, all-complete/zero-sample summary, raw-summary disagreement, and
-  digest non-resolution.
+  circular plan/output identity, incomplete indexes, mixed-regime pooling,
+  all-complete/zero-sample summary, raw-summary disagreement, and any path/digest
+  non-resolution.
 - **Durable artifacts:** Harness, planner, control runner, injected-failure fixtures,
   serializers, loopback report, and provenance.
 - **Explicit non-goals:** Cluster execution, transport selection, production runtime,
@@ -171,7 +173,8 @@ is not executed in PR #3 and no kickoff prompt is part of this PR.
 - **Acceptance and negative tests:** Six routes validate required interface/local
   endpoint, ready/current path, expected interface use, public-safe endpoint match,
   no path update, peer handshake, and no relay; all 108 node/payload/control artifacts
-  resolve through the canonical index. Reject missing direction/cell, relay or non-
+  retain one exact stable regime and resolve through the canonical index to the same
+  preregistered plan. Reject missing direction/cell, relay or non-
   test path, path update, raw interface/address, digest or binary mismatch, dirty
   producer, silent control subtraction, pooled regimes, or control relabeled as link
   evidence.
@@ -194,7 +197,7 @@ is not executed in PR #3 and no kickoff prompt is part of this PR.
   bounded data volume; no route/OS mutation.
 - **Acceptance and negative tests:** Every solo cell has ten valid attempts or a
   retained terminal status; round-trip latency stays round trip; bytes, sequences,
-  checksums, copies, errors, exclusions, sockets, and thermal regimes reconcile.
+  checksums, copies, errors, exclusions, sockets, and exact per-node regimes reconcile.
   Stream source stopping, 3-second target, 30-second/32-GiB caps, final-frame
   announcement, generation/verification timing, and peak application buffers match
   the plan. Reject missing cell, cap-shortened valid sample, partial final frame,
@@ -222,7 +225,8 @@ is not executed in PR #3 and no kickoff prompt is part of this PR.
   authorization as 07.
 - **Acceptance and negative tests:** Every cell has a terminal artifact; each valid
   simultaneous attempt has qualifying raw empirical evidence; all 246 paths/digests
-  resolve and identity/status/metrics/exclusions/errors/thermal fields reconcile.
+  resolve across the acyclic evidence graph and identity/status/metrics/exclusions/
+  errors/exact regime fields reconcile.
   Complete stream cells have ten flow/aggregate throughput samples; complete round-
   trip cells have exactly 1,000 or 100 latency samples. Reject unsupported timing
   claims, invalid evidence credited, missing evidence not undetermined, zero-sample
@@ -239,20 +243,23 @@ is not executed in PR #3 and no kickoff prompt is part of this PR.
   plans for both models without downloading weights.
 - **Recommended model and reasoning:** GPT-5.6 Sol, High; revision, licensing, model
   sequence, security, cost, and public identity are owner-facing architecture choices.
-- **Owned paths:** acquisition-plan artifact/checklist, one ADR only if direction
-  changes, and provenance.
+- **Owned paths:** accepted `qw5.model-acquisition-plan/v1` artifacts, canonical
+  revision listings, decision/checklist, one ADR only if direction changes, and
+  provenance; the v1 schema is read-only.
 - **Frozen inputs and contracts:** ADR-0001 revisions, official metadata/model cards,
   model-manifest v1, security/runtime boundaries, and complete-artifact-first rule.
 - **Dependencies and merge order:** After 08; before classification or downloads.
 - **Permissions or physical access:** Metadata-only network access; owner approval for
   revision, license, selection, later bandwidth/storage, and any model-sequence change.
 - **Acceptance and negative tests:** Full 40-hex revisions resolve; canonical revision
-  listings and frozen expected path sets cover config, tokenizers/templates,
-  licenses/notices, indexes, and shards. Reject mutable identity, a file table that
-  differs from the expected paths, cache/ETag identity, remote code, missing license,
-  unexplained vision exclusion, or silent thesis change.
-- **Durable artifacts:** Approved acquisition plan, canonical immutable-revision
-  listings with frozen expected path sets, and decision record.
+  listings and frozen expected path/role/component tables cover configuration,
+  tokenizer/templates, licenses/notices, indexes, and language shards, plus vision
+  bytes for the flagship. Reject mutable identity, a role-incomplete plan, a manifest
+  projection that differs from the plan, cache/ETag identity, remote code, missing
+  license, unexplained vision exclusion, or silent thesis change.
+- **Durable artifacts:** Approved acquisition-plan artifacts, canonical immutable-
+  revision listings with frozen expected path/role/component tables, and decision
+  record.
 - **Explicit non-goals:** Weights, parsing, conversion, quantization, or feasibility.
 
 ## M1-10 — SafeTensors parser and model-classification freeze
@@ -273,11 +280,13 @@ is not executed in PR #3 and no kickoff prompt is part of this PR.
 - **Permissions or physical access:** Metadata-only network access; no weights or
   model code execution. Owner decides any semantic ambiguity affecting model scope.
 - **Acceptance and negative tests:** Parser profile retains scalar `[]`, strict UTF-8,
-  duplicate-member rejection, limits, checked arithmetic/offsets, and exact dtype set;
+  duplicate-member rejection, string-to-string `__metadata__` projection, limits,
+  checked arithmetic/offsets, and exact dtype set;
   rules specify precedence, captures, expected classes, revision/config digest,
   unresolved behavior, and examples. Reject mutable format reference, duplicate JSON
-  member, scalar byte/offset mismatch, unsupported dtype, overflow, ambiguous rule
-  overlap, silent fallback, unknown name forced classified, or vision exclusion.
+  member, non-string or nested metadata value, scalar byte/offset mismatch,
+  unsupported dtype, overflow, ambiguous rule overlap, silent fallback, unknown name
+  forced classified, or vision exclusion.
 - **Durable artifacts:** Accepted parser profile, two rule sets, schema, fixtures,
   coverage report, provenance.
 - **Explicit non-goals:** Parser implementation, weight download, placement, or
@@ -297,8 +306,10 @@ is not executed in PR #3 and no kickoff prompt is part of this PR.
 - **Dependencies and merge order:** After 10; before real artifacts.
 - **Permissions or physical access:** None; generated miniature files only, no large
   downloads, remote code, or unsafe deserialization.
-- **Acceptance and negative tests:** Two passes reconcile; completeness is derived;
-  file/layer/expert totals and storage coverage reconcile. Reject duplicate JSON/key/
+- **Acceptance and negative tests:** Two passes reconcile; plan and manifest
+  path/role/component projections reconcile; role-derived completeness requires
+  configuration, language weights, license, tokenizer, and flagship vision; metadata,
+  file/layer/expert totals, and storage coverage reconcile. Reject duplicate JSON/key/
   tensor/path, oversized header, unknown dtype, overflow, reversed/out-of-range/
   overlap/hole, shape/byte mismatch, missing shard, private path, hash mismatch,
   rule ambiguity, or unclassified-as-classified.
@@ -356,8 +367,9 @@ is not executed in PR #3 and no kickoff prompt is part of this PR.
 - **Owned paths:** schemas/fixtures and accepted artifacts for
   `quantization-layout/v1`, `formula-set/v1`, `text-subset-dependency/v1`,
   `placement-gate-rule-set/v1`, `placement-candidate-set/v1`,
-  `placement-solver-objective/v1`, `reserve-headroom-policy/v1`, one ADR if direction
-  changes, and provenance.
+  `placement-solver-objective/v1`, `reserve-headroom-policy/v1`, accepted
+  `placement-evidence-graph/v1` production rules, one ADR if direction changes, and
+  provenance.
 - **Frozen inputs and contracts:** M1-05 baselines, M1-08 link summary, M1-12/13 exact
   tensors/configs, placement v1, evidence labels, owner-approved target reserve and
   candidate list.
@@ -368,9 +380,12 @@ is not executed in PR #3 and no kickoff prompt is part of this PR.
 - **Acceptance and negative tests:** Every formula has checked units/rounding and
   source fields; layouts reconcile metadata/padding/exceptions; placements enumerate
   allowed node sets; applicability plus passed/failed/unresolved/not-applicable gates
-  are exhaustive/disjoint; subset exclusions have dependency proof or remain
-  unresolved. Reject missing lineage, vacuous not-applicable gates, network traffic
-  without link evidence, bit labels alone, zero scratch by omission,
+  are exhaustive/disjoint; every gate rule has a deterministic registered evaluator
+  and every allocation rule has resolver semantics; every required memory class is
+  covered or has an explicit zero-byte proof; subset
+  exclusions have dependency proof or remain unresolved. Reject missing lineage,
+  producer-asserted `GO`, unresolved graph nodes, vacuous not-applicable gates,
+  network traffic without link evidence, bit labels alone, zero scratch by omission,
   result-tuned reserve, expert-count-as-packets, implicit vision removal, unknown
   tensor class, or quality inferred from size.
 - **Durable artifacts:** Accepted schemas, positive/hostile fixtures, formula/layout/
@@ -380,8 +395,9 @@ is not executed in PR #3 and no kickoff prompt is part of this PR.
 
 ## M1-15 — Placement and quantization-size analyzer
 
-- **Objective:** Implement the exact accepted integer calculations and enumerations for
-  both models and workload points; emit `qw5.placement-analysis/v1` artifacts.
+- **Objective:** Implement the exact accepted integer calculations, evidence-graph
+  resolver, and enumerations for both models and workload points; emit resolved
+  `qw5.placement-analysis/v1` artifacts.
 - **Recommended model and reasoning:** GPT-5.6 Terra, High; formulas, layouts,
   candidates, gates, solver objective, and expected vectors are frozen by 14.
 - **Owned paths:** `tools/placement_analysis/`, tests/fixtures, reproducibility docs,
@@ -394,7 +410,8 @@ is not executed in PR #3 and no kickoff prompt is part of this PR.
   cases; sizes, allocations, budgets, headroom, edges, and gates reconcile for each
   model/context/phase/candidate. Reject missing identity, duplicate assignment,
   double OS reserve, formula/layout drift, negative headroom passed, gate overlap/gap,
-  unresolved `GO`, implicit interpolation, or capability language.
+  incomplete memory-class coverage, standalone or unresolved-graph `GO`, implicit
+  interpolation, or capability language.
 - **Durable artifacts:** Analyzer, tests, per-scenario analyses, reconciliation report,
   and provenance.
 - **Explicit non-goals:** Quantization, inference, quality, kernels, scheduler,
