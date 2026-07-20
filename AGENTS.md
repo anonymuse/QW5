@@ -3,6 +3,21 @@
 These instructions apply to the entire repository. More specific `AGENTS.md` files may
 narrow behavior for a subtree but may not relax the project boundaries below.
 
+## Current program state
+
+The project owner concluded the three-node cluster implementation on 2026-07-19.
+QW5 is now being finished as an architecture case study and offline reference kit, as
+decided by
+[`ADR-0008`](docs/architecture/adr/0008-portfolio-transition.md). Historical M1–M5
+milestones, topology documents, and draft PR #3 contracts do not authorize hardware
+access, model downloads, inference implementation, or physical benchmarks.
+
+The active execution source is
+[`docs/portfolio/completion-plan.md`](docs/portfolio/completion-plan.md). Complete only
+the next dependency-ready portfolio task with its stated paths and checks. Resuming a
+runtime—single-node or distributed—requires explicit owner authorization, a new ADR,
+current model and hardware inputs, and a separate plan.
+
 ## Required startup reading
 
 Before editing:
@@ -11,9 +26,11 @@ Before editing:
    `docs/coordination/README.md`.
 2. Read `docs/coordination/workflow.md`, `docs/coordination/active-board.md`, and
    `docs/architecture/README.md`.
-3. Read every ADR and domain document relevant to the task.
-4. Inspect the current branch, status, remotes, tracked files, and existing changes.
-5. Confirm the task starts from current `main` unless the owner explicitly specifies a
+3. For portfolio work, read `docs/portfolio/completion-plan.md` and
+   `docs/architecture/adr/0008-portfolio-transition.md`.
+4. Read every ADR and domain document relevant to the task.
+5. Inspect the current branch, status, remotes, tracked files, and existing changes.
+6. Confirm the task starts from current `main` unless the owner explicitly specifies a
    different reviewed base.
 
 `PROJECT_HANDOFF.md` is the approved project direction. If a current primary source
@@ -22,7 +39,9 @@ request a decision.
 
 ## Task and branch discipline
 
-- Use one task, one `codex/<task-name>` branch, one worktree, and one pull request.
+- Use one task, one worktree, and one pull request. Name task branches
+  `codex/<task-name>` unless the active publishing workflow requires its documented
+  automation prefix (for example, `agent/<description>`).
 - Keep the pull request draft until its acceptance checks and provenance record are
   complete.
 - Do not mix unrelated cleanup, speculative features, or drive-by refactors into a

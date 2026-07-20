@@ -1,7 +1,11 @@
 # ADR-0002: Runtime ownership and dependency boundaries
 
-- **Status:** Accepted
+- **Status:** Historical reference; implementation authority superseded by ADR-0008
 - **Date:** 2026-07-14
+
+> [!NOTE]
+> This boundary describes the original runtime aspiration. No production inference
+> path was implemented. See [ADR-0008](0008-portfolio-transition.md).
 
 ## Context
 

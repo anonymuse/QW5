@@ -1,5 +1,11 @@
 # Benchmark methodology
 
+> [!IMPORTANT]
+> QW5 concluded its physical cluster program without publishing a hardware or inference
+> benchmark. This methodology is preserved as a reusable contract for future local-LLM
+> studies; it is not evidence that the described runs occurred. See
+> [ADR-0008](../architecture/adr/0008-portfolio-transition.md).
+
 QW5 benchmarks exist to test correctness and architecture decisions, not to manufacture
 a favorable headline. No performance result is valid without a reproducible record.
 
