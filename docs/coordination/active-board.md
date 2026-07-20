@@ -9,9 +9,9 @@ None. The unavailable cluster is an intentional scope decision, not a blocker.
 ## Ready
 
 None. The ordered portfolio queue lives in
-[`docs/portfolio/completion-plan.md`](../portfolio/completion-plan.md) and begins only
-after the current documentation package is published from a clean checkout of current
-`main` as task `P00`.
+[`docs/portfolio/completion-plan.md`](../portfolio/completion-plan.md) and begins after
+draft pull request [#4](https://github.com/anonymuse/QW5/pull/4) completes owner review
+and merges as task `P00`.
 
 ## Blocked
 
@@ -21,12 +21,13 @@ None.
 
 ### Portfolio transition and completion plan
 
-- **State:** review; documentation deliverables are complete in the clean,
-  branch-aware checkout and draft-PR publication remains P00
+- **State:** review; draft pull request #4 is open with validation and provenance
+  complete; owner review and merge remain P00
 - **Owner:** primary Codex task; single writer, no delegated or parallel writers
 - **Base:** fetched remote `main` at
   `c8e71bda5246c1e39b4d82ab416934b93280ff25`
 - **Branch:** `agent/portfolio-architecture-case-study`
+- **Pull request:** [#4 — Reframe QW5 as a portfolio-ready architecture case study](https://github.com/anonymuse/QW5/pull/4)
 - **Objective:** record the owner-approved end of the home-cluster implementation,
   reposition QW5 as an evidence-first Apple-silicon inference architecture case study,
   publish a flagship README, and create an execution-complete plan for lower-cost
@@ -38,7 +39,7 @@ None.
   `docs/architecture/README.md`, ADRs `0001`–`0003` status annotations,
   `docs/architecture/adr/0008-portfolio-transition.md`,
   `docs/benchmarks/methodology.md` status annotation, `docs/hardware/topology.md`,
-  `docs/portfolio/completion-plan.md`, and this board.
+  `docs/portfolio/completion-plan.md`, `docs/provenance/pr-0004.md`, and this board.
 - **Frozen inputs:** the owner's 2026-07-19 pivot; merged PRs
   [#1](https://github.com/anonymuse/QW5/pull/1) and
   [#2](https://github.com/anonymuse/QW5/pull/2); draft PR
@@ -47,7 +48,7 @@ None.
   provenance policy; official upstream links cited by the README.
 - **Dependencies:** documentation and existing source only; no model weights, remote
   machines, paid services, or new runtime dependencies.
-- **Validation:** all 17 Markdown files have resolving local links and balanced code
+- **Validation:** all 18 Markdown files have resolving local links and balanced code
   fences; changed-file whitespace checks pass; repository Markdown is valid UTF-8;
   privacy/secret/path scans found no candidate; current GitHub repository, PR, and
   PR #3 file-count state were inspected; external primary links used by the new
