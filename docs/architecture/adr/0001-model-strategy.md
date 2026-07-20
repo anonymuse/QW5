@@ -1,8 +1,14 @@
 # ADR-0001: Model strategy
 
-- **Status:** Accepted
+- **Status:** Historical reference; implementation authority superseded by ADR-0008
 - **Date:** 2026-07-14
 - **Decision owners:** Project owner and bootstrap architecture task
+
+> [!NOTE]
+> The model sequence remains part of the original design record. The owner concluded
+> the cluster implementation before model acquisition or inference. See
+> [ADR-0008](0008-portfolio-transition.md). A future runtime must select current exact
+> revisions through a new decision.
 
 ## Context
 

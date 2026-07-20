@@ -1,7 +1,12 @@
 # ADR-0003: Measurement before placement
 
-- **Status:** Accepted
+- **Status:** Historical reference; implementation authority superseded by ADR-0008
 - **Date:** 2026-07-14
+
+> [!NOTE]
+> The measurement discipline remains reusable, but QW5 did not perform the planned
+> inventory or link/kernel measurements. See
+> [ADR-0008](0008-portfolio-transition.md).
 
 ## Context
 

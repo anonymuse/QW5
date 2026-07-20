@@ -1,4 +1,11 @@
-# Initial hardware topology
+# Historical target hardware topology
+
+> [!IMPORTANT]
+> This is the owner-supplied topology that shaped the original reference design. The
+> cluster implementation program was concluded before QW5 collected an inventory,
+> characterized a link, downloaded a model, or ran inference. These machines are not
+> an active project dependency. See
+> [ADR-0008](../architecture/adr/0008-portfolio-transition.md).
 
 The following topology is an owner-supplied project input. It is not a `MEASURED`
 inventory or a performance result.
@@ -16,9 +23,9 @@ physical memory is 144 GB. Node A is the logical control plane but may store wei
 and compute. Nodes B and C are expected to perform more heavy computation, subject to
 measurement.
 
-## Unknown until inventory
+## Facts that remained unmeasured
 
-The project must collect rather than assume:
+Any future project using this reference design must collect rather than assume:
 
 - exact chip and GPU configuration, memory bandwidth, and available unified memory;
 - macOS version and build, relevant firmware, compiler, and power configuration;
@@ -32,23 +39,25 @@ The bootstrap `qw5 inventory` command is deliberately limited to compiler-target
 metadata and labels its schema `bootstrap-target-v1`. It is read-only, but its output
 is not a three-node hardware manifest and must not be cited as one.
 
-## M1 inventory design
+## Preserved inventory design
 
-The full read-only probe will emit a versioned, deterministic-key-order manifest with
-public-safe node identity, source command or API for each fact, collection timestamp,
-units, tool version, and explicit unavailable/error fields. A separate reviewed schema
-will distinguish owner-declared inputs from probed facts and benchmark measurements.
+The proposed full read-only probe would emit a versioned, deterministic-key-order
+manifest with public-safe node identity, source command or API for each fact,
+collection timestamp, units, tool version, and explicit unavailable/error fields. A
+separate reviewed schema will distinguish owner-declared inputs from probed facts and
+benchmark measurements.
 
 Inventory output will exclude credentials, usernames, home paths, serial numbers,
 network secrets, and unrelated process or filesystem data. Committed reproducibility
 manifests will use stable node aliases A, B, and C.
 
-## Link characterization plan
+## Preserved link-characterization design
 
-Measure A-B, A-C, and B-C in both directions. For each direction, cover payload sizes
-relevant to state transfer and expert dispatch; record transport, checksums, bytes,
-messages, copies, synchronization, retries, latency distribution, and throughput. Run
-links alone and in representative simultaneous combinations.
+A future cluster study can measure A-B, A-C, and B-C in both directions. For each
+direction, cover payload sizes relevant to state transfer and expert dispatch; record
+transport, checksums, bytes, messages, copies, synchronization, retries, latency
+distribution, and throughput. Run links alone and in representative simultaneous
+combinations.
 
 Peer-to-peer transfers are preferred when `MEASURED` evidence supports them. The
 logical control plane is not a mandatory data relay. Prefill and decode traffic models
